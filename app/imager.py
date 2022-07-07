@@ -1,401 +1,361 @@
-##### Imports Packages #####
-
+import os
+import cv2
+import json
+import copy
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
-import pandas as pd
-import random
-import json
 
-##### CLASSES #####
 
-## Image Loader ##
-class image_loader():
-    
-    def __init__(self):
-     
-        #Where the processed annotations csv file is stored. 
-        self.processed_annotation_path = "../data/processed_annotations.csv"
-        # Main df
+class ImageLoader:
+    """
+    Easy loading, splitting into test and CV, and viewing of images
+
+
+    """
+
+    def __init__(self, train_split=0.8, seed=43465):
+        """
+
+
+        :param train_split: Fraction of train data to assign to train versus CV
+        :param seed: Seed to shuffle the train file to split into train and CV
+        """
+
+        # Where the processed annotations csv file is stored.
+        this_file_location = os.path.abspath("")
+
+        # This is the
+        self.processed_annotation_path = os.path.join(this_file_location, "../data/processed_annotations.csv")
+        self.train_files = os.path.join(this_file_location, "../data/labels/train_images.csv")
+        self.test_files = os.path.join(this_file_location, "../data/labels/test_images.csv")
+        self.train_file_loc = os.path.join(this_file_location, "../data/images/train")
+
+        # Load the multiple DataFrames
         self.annotations_df = pd.read_csv(self.processed_annotation_path)
+        train_and_cv_files_df = pd.read_csv(self.train_files)
+        train_and_cv_files_df = train_and_cv_files_df.rename(
+            columns={'imagename': 'filename', 'annotatedname': 'annotated_filename'})
+
+        # Set the seed for splitting train and CV
+        np.random.seed(seed)
+        unique_files = train_and_cv_files_df['filename'].unique()
+        np.random.shuffle(unique_files)
+
+        # These are the train and test sets
+        train_set = unique_files[:int(unique_files.shape[0] * train_split)]
+        cv_set = unique_files[int(unique_files.shape[0] * train_split):]
+
+        # Split the train data
+        # 1. Into train set
+        self.train_files_df = train_and_cv_files_df[train_and_cv_files_df['filename'].isin(train_set)]
+        # 2. Into CV set
+        self.cv_files_df = train_and_cv_files_df[train_and_cv_files_df['filename'].isin(cv_set)]
+
+        self.test_files_df = pd.read_csv(self.test_files)
+        self.sample_df = pd.DataFrame()
+
+        # Keep only rows with test data
+        # self.main_df = \
+        #     self.annotations_df[self.annotations_df['filename'].isin(self.train_files_df['imagename'])].copy()
+        self.main_df = self.annotations_df.merge(self.train_files_df, on='filename')
+        self.main_df['sno'] = list(range(0, self.main_df.shape[0]))
+
         # List of all defect classes
         self.defect_classes = self.annotations_df['defect_class'].unique().tolist()
+
         # List of all filenames
         self.all_files = self.annotations_df['filename'].unique().tolist()
+
         # Count of each class in complete dataset.
         self.instance_count = dict(self.annotations_df['defect_class'].value_counts())
-        
-        # Instatiate some attributes - i think this is not neccesary...
-        self.example_dict = {}
-        self.file_list = []
-        self.bounding_boxes = []
-        self.annotation_shape = []
-        self.segmentations = []
-        self.vector_list = []
-        self.file_list_multiple_annotations = []
-        
+
     def n_instances(self, defect_class):
-    # returns the number of instances in a given defect class
-        
+        # returns the number of instances in a given defect class
+
         return self.instance_count[defect_class]
-    
-    def load_n_images(self, n, shuffle=True, retn = True):
-        
-        ## NOT WORKING YET
-        ## Loads n images
-        ## Returns a dict with schema:
-        ## 
-        ##  "filename":[bounding_boxes, annotation_shape, segmentations]"
-        ## 
-        ## filename -> source image file. 
-        ## bounding_boxes -> extracted bounding box from the original segmentations
-        ## annotation_shape -> the original segmentation shape (rect, circle, elipse, polygon).
-        ## segmentations -> the original segmentation coordinates. 
-        ## This schema is repeated for n filenames. 
-        
-        #Clear any old data
-        self.example_dict = {}
-              
-        # Check that there are >=n examples within that class:
-        if n >= len(self.all_files):
-            raise Exception(f"There are only {len(self.all_files)} available files. Pick a smaller n'")
-        #Create an index:
-        n_elements = len(self.all_files)
-        idx = range(0, n_elements)
-        
-        #Shuffle if required
+
+    def load_n(self, n, shuffle=True, defect_classes=None):
+        """
+        Loads n images and returns a DataFrame with following schema:
+            [filename, bounding_boxes, annotation_shape, segmentations]
+            filename -> source image file.
+            bounding_boxes -> extracted bounding box from the original segmentations
+            annotation_shape -> the original segmentation shape (rect, circle, elipse, polygon).
+            segmentations -> the original segmentation coordinates.
+
+        :param n: Number of images to load
+        :param shuffle: If True then random images are picked
+        :param defect_classes: If None, then all defect classes are returned.
+                             If a string, then that defect class is extracted
+                             If a list, then all the defect classes in the list are extracted
+        :return:
+        """
+
+        if defect_classes is not None:
+            # If it is not a list then make it a list
+            if not isinstance(defect_classes, list):
+                if isinstance(defect_classes, str):
+                    # Make it a list
+                    defect_classes = [defect_classes, ]
+                else:
+                    raise ValueError('defect_classes can only be one of string(defect class name), '
+                                     'list of strong of defect classes or None(all classes)')
+            if not set(defect_classes).issubset(set(self.defect_classes)):
+                raise ValueError(f'Defect classes can only be one of {self.defect_classes}')
+        else:
+            defect_classes = copy.copy(self.defect_classes)
+
+        # Shuffle if required
         if shuffle:
-            idx = [x for x in random.sample(idx, k = n_elements)][:n]
+            self.main_df = self.main_df.sample(frac=1)
         else:
-            idx = idx[:n]
-            
-        # Get a list of unique filenames for filtering:
-        self.file_list = np.array(self.all_files)[idx]
-        
-        self.file_list_multiple_annotations = self.annotations_df['filename']\
-            [self.annotations_df['filename'].isin(self.file_list)]\
-            .tolist()
-        
-        # Get original segmentations
-        self.segmentations = self.annotations_df['region_shape_attributes']\
-            [self.annotations_df['filename'].isin(self.file_list)]\
-            .tolist()
-        
-        # Get a list of bounding boxes
-        self.bounding_boxes = self.annotations_df['bounding_box_coords']\
-            [self.annotations_df['filename'].isin(self.file_list)]\
-            .tolist()
-        
-        #I don't know why, but it is loading this list of lists as a list of strings.
-        # This converts each string to a list. 
-        self.bounding_boxes = [json.loads(x) for x in self.bounding_boxes]
+            self.main_df = self.main_df.sort_values(by='sno')
 
-        # Get a list of shapes
-        self.annotation_shape = self.annotations_df['annotation_shape']\
-            [self.annotations_df['filename'].isin(self.file_list)]\
-            .tolist()
-        
-        # Write each example to the dictionary with attribute
-        ### THIS FAILS - can't have multiple keys with the same filename!!!! #####
-        for i in range(len(self.file_list_multiple_annotations)):
-            self.example_dict.update(
-                {f"{self.file_list_multiple_annotations[i]}":[
-                    self.bounding_boxes[i], 
-                    self.annotation_shape[i],
-                    self.segmentations[i],
-                ]}
-            )
-        
-        if retn:
-            return self.example_dict
-        
-    def load_n_examples(self, n, defect_class, shuffle=True, retn = True):
-        
-        ## Loads n examples of a given defect class from 
-        ## either consecutive or shuffled instances from the dataset. 
-        ## Returns a dict with schema:
-        ## 
-        ##  "filename":[bounding_boxes, annotation_shape, segmentations]"
-        ## 
-        ## filename -> source image file. 
-        ## bounding_boxes -> extracted bounding box from the original segmentations
-        ## annotation_shape -> the original segmentation shape (rect, circle, elipse, polygon).
-        ## segmentations -> the original segmentation coordinates. 
-        ## This schema is repeated for n filenames. 
-        
-        #Clear any old data
-        self.example_dict = {}
-        
-        # Check that the defect_class is in the df:
-        if defect_class not in self.defect_classes:
-            raise Exception(f"Class titled {defect_class} not found.")
-        
-        # Check that there are >=n examples within that class:
-        if n > self.n_instances(defect_class):
-            raise Exception(f"There are only {self.n_instance(defect_class)} examples of {defect_class}'s. Pick a smaller n'")
-            
-        #Create an index:
-        n_elements = self.n_instances(defect_class)
-        idx = range(0, n_elements)
-        
-        #Shuffle if required
-        if shuffle:
-            idx = [x for x in random.sample(idx, k = n_elements)][:n]
+        # Return the DataFrame with the classes and the images
+        self.sample_df = self.main_df.groupby('defect_class').head(n)
+        self.sample_df = self.sample_df[['filename', 'annotated_filename', 'bounding_box_coords',
+                                         'annotation_shape', 'region_shape_attributes',
+                                         'defect_class']]
+
+        # If defect classes were provided then only keep the required ones
+        self.sample_df = self.sample_df[self.sample_df['defect_class'].isin(defect_classes)]
+
+        # Add the location of the files to read from
+        self.sample_df['fileloc'] = [os.path.join(self.train_file_loc, x) for x in self.sample_df['filename']]
+        self.sample_df['anot_fileloc'] = \
+            [os.path.join(self.train_file_loc, x) for x in self.sample_df['annotated_filename']]
+
+        return self.sample_df
+
+    # noinspection PyUnresolvedReferences
+    @staticmethod
+    def load_image(in_df_filename_or_list):
+        """
+        Reads the images into numpy arrays from the source
+
+        :param in_df_filename_or_list:
+                            if DataFrame then reads the fileloc colum of the DataFrame and creates an image column
+                            If string then assumes that is a filename(with path) and returns numpy array
+                            If list then assumes a list of filenames(with path) and returns a list of numpy arrays
+        :return:
+        """
+
+        if isinstance(in_df_filename_or_list, pd.DataFrame):
+            in_df_filename_or_list['image'] = [cv2.imread(x) for x in in_df_filename_or_list['fileloc']]
+            return in_df_filename_or_list
+        elif isinstance(in_df_filename_or_list, list):
+            images = [cv2.imread(x) for x in in_df_filename_or_list]
+            return images
+        elif isinstance(in_df_filename_or_list, str):
+            return cv2.imread(in_df_filename_or_list)
         else:
-            idx = idx[:n]
-            
-        # Get a list of filenames       
-        self.file_list = self.annotations_df['filename']\
-            [self.annotations_df['defect_class']==defect_class]\
-            .iloc[idx]\
-            .tolist()
-        
-        # Get original segmentations
-        self.segmentations = self.annotations_df['region_shape_attributes']\
-            [self.annotations_df['defect_class']==defect_class]\
-            .iloc[idx]\
-            .tolist()
-        
-        # Get a list of bounding boxes
-        self.bounding_boxes = self.annotations_df['bounding_box_coords']\
-        [self.annotations_df['defect_class']==defect_class]\
-            .iloc[idx]\
-            .tolist()
-        
-        #I don't know why, but it is loading this list of lists as a list of strings.
-        # This converts each string to a list. 
-        self.bounding_boxes = [json.loads(x) for x in self.bounding_boxes]
+            raise TypeError('in_df_filename_or_list can only be one of DataFrame, string or list')
 
-        # Get a list of shapes
-        self.annotation_shape = self.annotations_df['annotation_shape']\
-            [self.annotations_df['defect_class']==defect_class]\
-            .iloc[idx]\
-            .tolist()
-        
-        # Write each example to the dictionary with attribute
-        for i in range(len(self.file_list)):
-            self.example_dict.update(
-                {f"{self.file_list[i]}":[
-                    self.bounding_boxes[i], 
-                    self.annotation_shape[i],
-                    self.segmentations[i],
-                ]}
-            )
-        
-        if retn:
-            return self.example_dict
-        
-    def load_image_vectors(self, pth=f"../data/images/", retn = True):
-        
-        ## Loads each file in the file_list as a numpy array, and returns the list of 
-        # images as a list of vectors.
-                
-        if self.file_list == []: 
-            print("file_list is empty, please pass an example dict or run image_loader.load_n_examples(n_examples, defect_class)")
+    @staticmethod
+    def get_coords(coord_list):
+        # Returns the coordinates from the annotations_df 'bounding_box' column when using universal bounding boxes.
+
+        # Assumes format is [xmin, xmax, ymin, ymax]
+        xmin = coord_list[0]
+        xmax = coord_list[1]
+        ymin = coord_list[2]
+        ymax = coord_list[3]
+
+        return [xmin, ymin, xmax - xmin, ymax - ymin]
+
+    @staticmethod
+    def draw_rectangular_patch(x, y, w, h, color_='red', alpha_=0.2):
+        # Creates a rectanglar bounding box
+        return patches.Rectangle(
+            (x, y), w, h, linewidth=1, edgecolor=color_, facecolor='none', alpha=alpha_
+        )
+
+    @staticmethod
+    def draw_polygon_patch(x, y, color_='green', alpha_=0.2):
+        # Creates a polygon bounding box
+        vector = np.column_stack((np.array(x), np.array(y)))
+        poly = patches.Polygon(
+            vector, color=color_, alpha=alpha_
+        )
+        return poly
+
+    @staticmethod
+    def draw_circle_patch(xy, radius, color_='blue', alpha_=0.2):
+        # Creates a circular bounding region
+        circle = patches.Circle(
+            xy, radius, color=color_, alpha=alpha_
+        )
+        return circle
+
+    @staticmethod
+    def draw_elliptical_patch(xy, width, height, color_='yellow', alpha_=0.2, angle=0):
+        # Creates a ellptical bounding region
+        ellipse = patches.Ellipse(
+            xy, width, height, angle, color=color_, alpha=alpha_
+        )
+        return ellipse
+
+    @staticmethod
+    def check_buffer(x, y, w, h, img, buffer):
+        # Check that adding some buffer pixels does not go
+        # outside the image bounds
+
+        xmin, ymin = (0, 0)
+        xmax = img.shape[1]
+        ymax = img.shape[0]
+        # Check x min
+        if x - buffer < 0:
+            x_ = 0
         else:
-            self.vector_list = [load_image(pth, img_name) for img_name in self.file_list]
+            x_ = x - buffer
 
-        if retn:
-            return self.vector_list
-
-        
-## Defect_Viewer ##        
-class defect_viewer():
-    
-    def __init__(self, image_loader=None):
-        
-        if image_loader == None:
-            print('Need to pass a loaded image_loader')
+        # Check y min
+        if y - buffer < 0:
+            y_ = 0
         else:
-            self.image_loader = image_loader
-        
-            #Load image information
-            self.file_list = self.load_file_list()
-            self.example_dict = self.load_example_dict()
-            self.vector_list = self.load_vector_list()        
-        
-    def load_file_list(self):
-        
-        if self.image_loader.file_list == []:
-            print('Error - No defects loaded into the image loader. Run self.image_loader.load_n_examples()')
-            return []
+            y_ = y - buffer
+
+        # Check x max
+        if x + w + buffer > xmax:
+            w_ = x + w
         else:
-            return self.image_loader.file_list
-    
-    def load_vector_list(self):
-        
-        if self.image_loader.vector_list == []:
-            print('Error - No images loaded into the image array. Run self.image_loader.load_image_vectors()')
-            return []
+            w_ = x + w + buffer
+
+        # Check y max
+        if y + h + buffer > ymax:
+            h_ = y + h
         else:
-            return self.image_loader.vector_list
+            h_ = y + h + buffer
 
-    def load_example_dict(self):
-        
-        if self.image_loader.example_dict == {}:
-            print('Error - No defects loaded into the image loader. Run self.load_n_examples()')
-            return {}
+        return x_, y_, w_, h_
+
+    def _draw_annotation(self, ax, annotation_type, annotation):
+        """
+
+        :param ax:
+        :param annotation_type:
+        :param annotation:
+        :return:
+        """
+
+        if annotation_type == 'bounding_box':
+            # Create a rectangular patch
+            rect = self.draw_rectangular_patch(*self.get_coords(eval(annotation)))
+            ax.add_patch(rect)
+
+        elif annotation_type == 'segmentations':
+
+            # load the dictionary processed coordinates
+            seg_dict = json.loads(annotation)
+            shape = seg_dict['name']
+
+            if shape == 'polygon':
+                all_x = seg_dict['all_points_x']
+                all_y = seg_dict['all_points_y']
+                polygon = self.draw_polygon_patch(all_x, all_y)
+                ax.add_patch(polygon)
+
+            elif shape == 'circle':
+                xy = (seg_dict['cx'], seg_dict['cy'])
+                radius = seg_dict['r']
+                circle = self.draw_circle_patch(xy, radius)
+                ax.add_patch(circle)
+
+            elif shape == 'elipse':
+                xy = (seg_dict['cx'], seg_dict['cy'])
+                width = seg_dict['rx']
+                height = seg_dict['ry']
+                ellipse = self.draw_elliptical_patch(xy, width, height, 0)
+                ax.add_patch(ellipse)
+
+            elif shape == 'rect':
+                rect = self.draw_rectangular_patch(seg_dict['x'], seg_dict['y'], seg_dict['width'], seg_dict['height'])
+                ax.add_patch(rect)
+
+            elif shape == 'none':
+                pass
+
+    def view_defects(self, n, defect_classes=None, group_by='defect_class', annotation_type='segmentations'):
+        """
+
+        :return:
+        """
+
+        if annotation_type == 'bounding_box':
+            annotation_column = 'bounding_box_coords'
         else:
-            return self.image_loader.example_dict
-        
-    
-    def view_loaded_files(self, annotation_type=None):
-        
-        if annotation_type == None:
-            print("""Error: Please specify the type of Annotation highlights as \'bounding box\' or \'segmentations""")
-        
-        n_examples = len(self.image_loader.file_list)
-        
-        for i in range(n_examples):
-            
-            img = self.vector_list[i]
-            filename = self.file_list[i]
-                 
-            # Load the bounding boxes using the get_coords function, which are 
-            # stored in the first list element of the example_dict.
-            x,w,y,h = get_coords(self.example_dict[f'{filename}'][0])
+            annotation_column = 'region_shape_attributes'
 
-                #Plot
-            fig, axs = plt.subplots(1,2,figsize=(10,10))
-            axs[0].set_title(f"Full Image - {filename}")
-            axs[0].imshow(img)
-            
-            if annotation_type == 'bounding_box':
-                
-                # Create a rectangular patch
-                rect = draw_rectangular_patch(x,y,w,h)
-                axs[0].add_patch(rect)
+        # Load 'n' images
+        sample_df = self.load_n(n, shuffle=True, defect_classes=defect_classes)
+        sample_df = self.load_image(sample_df)
 
-            elif annotation_type == 'segmentations':
-                
-                # load the dictionary processed coordinates
-                seg_dict = json.loads(self.example_dict[f'{filename}'][2])
-                shape = seg_dict['name']
-                
-                if shape == 'polygon':
-                    all_x = seg_dict['all_points_x']
-                    all_y = seg_dict['all_points_y']
-                    polygon =  draw_polygon_patch(all_x, all_y)
-                    axs[0].add_patch(polygon)
-                
-                elif shape == 'circle':
-                    xy = (seg_dict['cx'],seg_dict['cy'])
-                    radius = seg_dict['r']
-                    circle = draw_circle_patch(xy, radius)
-                    axs[0].add_patch(circle)
-                    
-                elif shape == 'elipse':
-                    xy = (seg_dict['cx'],seg_dict['cy'])
-                    width = seg_dict['rx']
-                    height = seg_dict['ry']
-                    ellipse = draw_elliptical_patch(xy, width, height, 0)
-                    axs[0].add_patch(ellipse)                    
-                
-                elif shape == 'rect':
-                    rect = draw_rectangular_patch(x,y,w,h)
-                    axs[0].add_patch(rect)
-                
-                elif shape == 'none':
-                    pass 
-                
-            
-            #Plot cropped - note we use the coords from the 
-            # bounding box calculations
-            #buffer = 2
-            #x,y,w,h = check_buffer(x,y,w,h,img, buffer)
-                
-            
-            axs[1].imshow(img[y:y+h, x:x+w])
-            axs[1].set_title('Cropped Image')
-           
-        
-##### FUNCTIONS #####        
+        # Create a separate visualization for each class
+        for group_name, group_df in sample_df.groupby(group_by):
 
-def load_image(img_pth, img_name):
-    #Load an image given the path and filename
-    #Concatenate path and filename
-    pth = img_pth + img_name
-    #read image
-    img = plt.imread(pth)
-    
-    return img       
+            #  Create multiple pairs of images
+            fig = plt.figure(figsize=(6.4*2, 4.8*group_df.shape[0]))
+            plt.suptitle(group_name)
 
-def get_coords(coord_list):
-    #Returns the coordinates from the annotations_df 'bounding_box' column when using universal bounding boxes. 
-    
-    # Assumes format is [xmin, xmax, ymin, ymax]
-    xmin = coord_list[0]
-    xmax = coord_list[1]
-    ymin = coord_list[2]
-    ymax = coord_list[3]
-    
-    return [xmin, xmax-xmin, ymin, ymax-ymin]
+            # Reset the index
+            group_df = group_df.reset_index()
 
-def draw_rectangular_patch(x,y,w,h,color_='red', alpha_=0.2):
-    # Creates a rectanglar bounding box    
-    return patches.Rectangle(
-        (x, y), w, h, linewidth=1, edgecolor=color_, facecolor='none', alpha=alpha_
-)
+            for index, row in group_df.iterrows():
 
-def draw_polygon_patch(x, y, color_='green', alpha_=0.2):
-    # Creates a polygon bounding box
-    vector = np.column_stack((np.array(x), np.array(y)))
-    poly = patches.Polygon(
-        vector, color=color_, alpha=alpha_
-    )
-    return poly
+                # Get the filename for the image
+                filename = row['filename']
 
-def draw_circle_patch(xy, radius, color_='blue', alpha_=0.2):
-    # Creates a circular bounding region
-    circle = patches.Circle(
-        xy, radius, color=color_, alpha=alpha_
-    )    
-    return circle
+                # Get all the annotations for this file
+                this_file_df = self.main_df[self.main_df['filename'] == filename]
 
-def draw_elliptical_patch(xy, width, height, color_='yellow', alpha_=0.2, angle=0):
-    # Creates a ellptical bounding region
-    ellipse = patches.Ellipse(
-        xy, width, height, angle, color=color_, alpha=alpha_
-    )    
-    return ellipse
+                # Keep only the annotations belonging to this class
+                this_file_df = this_file_df[this_file_df['defect_class'] == group_name]
 
-def check_buffer(x,y,w,h,img, buffer):
-    
-    # Check that adding some buffer pixels does not go 
-    # outside the image bounds 
-    
-    xmin,ymin  = (0,0)
-    xmax = img.shape[1] 
-    ymax = img.shape[0]
-    # Check x min
-    if x - buffer < 0:
-        x_ = 0 
-    else:
-        x_ = x - buffer
-    
-    # Check y min
-    if y - buffer < 0:
-        y_ = 0 
-    else:
-        y_ = y - buffer
-        
-    # Check x max
-    if x + w + buffer > xmax:
-        w_ = x + w 
-    else:
-        w_ = x + w + buffer
-    
-    # Check y max
-    if y + h + buffer > ymax:
-        h_ = y + h 
-    else:
-        h_ = y + h + buffer
-        
-    return x_, y_, w_, h_
+                # Add a subplot to the figure
+                # noinspection PyTypeChecker
+                ax = fig.add_subplot(group_df.shape[0], 2, index*2 + 1)
 
+                # Show
+                ax.imshow(row['image'])
+                ax.set_title(filename)
+
+                # Add a subplot to the figure
+                # noinspection PyTypeChecker
+                ax = fig.add_subplot(group_df.shape[0], 2, index*2 + 2)
+
+                # Show the defect annotations
+                ax.imshow(row['image'])
+                ax.set_title(group_name)
+
+                for annotation in this_file_df[annotation_column]:
+                    self._draw_annotation(ax, annotation_type, annotation)
+
+        plt.show()
 
 if __name__ == '__main__':
+    img = ImageLoader()
 
-    image_loader()
-    defect_viewer()
-    
+    do_test_loader = False
+
+    if do_test_loader:
+        # Load all defects
+        all_defects = img.load_n(10, defect_classes=None)
+
+        # Load one defect, input is a string
+        one_defect = img.load_n(10, defect_classes=img.defect_classes[0])
+
+        # Load one defect, input is a string
+        two_defects = img.load_n(10, defect_classes=img.defect_classes[:2])
+
+        if all_defects.empty or one_defect.empty or two_defects.empty:
+            raise ValueError('Unexpectedly, one or more of the DataFrames was empty')
+
+    do_test_viewer = True
+    if do_test_viewer:
+
+        # Load all defects
+        img.view_defects(10, defect_classes=None)
+
+

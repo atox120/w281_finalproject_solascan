@@ -1,5 +1,6 @@
 # Image files
-**/data/images/
+data/images/
+.idea/*
 
 # Jupyter Notebook
 .ipynb_checkpoints
