@@ -15,13 +15,7 @@ class ImageLoader:
 
     """
 
-    def __init__(self, train_split=0.8, seed=43465):
-        """
-
-
-        :param train_split: Fraction of train data to assign to train versus CV
-        :param seed: Seed to shuffle the train file to split into train and CV
-        """
+    def __init__(self):
 
         # Where the processed annotations csv file is stored.
         this_file_location = os.path.abspath("")
@@ -31,12 +25,51 @@ class ImageLoader:
         self.train_files = os.path.join(this_file_location, "../data/labels/train_images.csv")
         self.test_files = os.path.join(this_file_location, "../data/labels/test_images.csv")
         self.train_file_loc = os.path.join(this_file_location, "../data/images/train")
+        self.test_file_loc = os.path.join(this_file_location, "../data/images/test")
+
+        # These are all the files in the train folder
+        all_files = os.listdir(self.train_file_loc)
 
         # Load the multiple DataFrames
         self.annotations_df = pd.read_csv(self.processed_annotation_path)
-        train_and_cv_files_df = pd.read_csv(self.train_files)
-        train_and_cv_files_df = train_and_cv_files_df.rename(
-            columns={'imagename': 'filename', 'annotatedname': 'annotated_filename'})
+        self.train_files_df = pd.read_csv(self.train_files)
+        self.train_files_df = self.train_files_df.rename(columns={'imagename': 'filename',
+                                                                  'annotatedname': 'annotated_filename'})
+
+        # load
+        defect_files = self.train_files_df['filename'].tolist()
+        good_files = [x for x in all_files if x not in defect_files]
+        # Create a DataFrame with no issues
+        good_df = pd.DataFrame({'filename': good_files, 'annotated_filename': good_files})
+        self.train_files_df = pd.concat((self.train_files_df, good_df))
+
+        # Keep only one copy of the file and folder
+        self.cv_files_df = pd.DataFrame()
+        self.sample_df = pd.DataFrame()
+
+        # Keep only rows with test data
+        self.main_df = self.annotations_df.merge(self.train_files_df, on='filename', how='inner')
+        self.main_df['sno'] = list(range(0, self.main_df.shape[0]))
+
+        # List of all defect classes
+        self.defect_classes = self.annotations_df['defect_class'].unique().tolist()
+
+        # List of all filenames
+        self.all_files = self.annotations_df['filename'].unique().tolist()
+
+        # Count of each class in complete dataset.
+        self.instance_count = dict(self.annotations_df['defect_class'].value_counts())
+
+    def split_train_cv(self,  train_split=0.8, seed=2**17):
+        """
+        Split train set in
+
+        :param train_split:
+        :param seed:
+        :return:
+        """
+
+        train_and_cv_files_df = self.train_files_df.copy()
 
         # Set the seed for splitting train and CV
         np.random.seed(seed)
@@ -52,24 +85,6 @@ class ImageLoader:
         self.train_files_df = train_and_cv_files_df[train_and_cv_files_df['filename'].isin(train_set)]
         # 2. Into CV set
         self.cv_files_df = train_and_cv_files_df[train_and_cv_files_df['filename'].isin(cv_set)]
-
-        self.test_files_df = pd.read_csv(self.test_files)
-        self.sample_df = pd.DataFrame()
-
-        # Keep only rows with test data
-        # self.main_df = \
-        #     self.annotations_df[self.annotations_df['filename'].isin(self.train_files_df['imagename'])].copy()
-        self.main_df = self.annotations_df.merge(self.train_files_df, on='filename')
-        self.main_df['sno'] = list(range(0, self.main_df.shape[0]))
-
-        # List of all defect classes
-        self.defect_classes = self.annotations_df['defect_class'].unique().tolist()
-
-        # List of all filenames
-        self.all_files = self.annotations_df['filename'].unique().tolist()
-
-        # Count of each class in complete dataset.
-        self.instance_count = dict(self.annotations_df['defect_class'].value_counts())
 
     def n_instances(self, defect_class):
         # returns the number of instances in a given defect class
@@ -90,7 +105,11 @@ class ImageLoader:
         :param defect_classes: If None, then all defect classes are returned.
                              If a string, then that defect class is extracted
                              If a list, then all the defect classes in the list are extracted
-        :return:
+        :return: DataFrame with samples
+
+        Usage:
+
+
         """
 
         if defect_classes is not None:
@@ -115,7 +134,7 @@ class ImageLoader:
 
         # Return the DataFrame with the classes and the images
         self.sample_df = self.main_df.groupby('defect_class').head(n)
-        self.sample_df = self.sample_df[['filename', 'annotated_filename', 'bounding_box_coords',
+        self.sample_df = self.sample_df[['filename', 'bounding_box_coords',
                                          'annotation_shape', 'region_shape_attributes',
                                          'defect_class']]
 
@@ -124,10 +143,22 @@ class ImageLoader:
 
         # Add the location of the files to read from
         self.sample_df['fileloc'] = [os.path.join(self.train_file_loc, x) for x in self.sample_df['filename']]
-        self.sample_df['anot_fileloc'] = \
-            [os.path.join(self.train_file_loc, x) for x in self.sample_df['annotated_filename']]
 
         return self.sample_df
+
+
+class DefectViewer:
+    """
+    Visualizes defects and provides annotations in the form of bounding boxes or segmentations
+    """
+
+    def __init__(self, il_obj):
+        """
+
+        :param il_obj: Object of ImageLoader
+        """
+
+        self.il_obj = il_obj
 
     # noinspection PyUnresolvedReferences
     @staticmethod
@@ -135,15 +166,21 @@ class ImageLoader:
         """
         Reads the images into numpy arrays from the source
 
-        :param in_df_filename_or_list:
-                            if DataFrame then reads the fileloc colum of the DataFrame and creates an image column
-                            If string then assumes that is a filename(with path) and returns numpy array
-                            If list then assumes a list of filenames(with path) and returns a list of numpy arrays
+        :param in_df_filename_or_list: if DataFrame then reads the fileloc colum of the DataFrame and creates an
+            image column. If string then assumes that is a filename(with path) and returns numpy array. If list then
+            assumes a list of filenames(with path) and returns a list of numpy arrays
         :return:
+
+        .. code-block:: python
+            imgv = ImageLoader()
+            imgv.load_n(10, defect_classes=None)
+            dv = DefectViewer(imgv)
+            dv.view_defects()
         """
 
         if isinstance(in_df_filename_or_list, pd.DataFrame):
-            in_df_filename_or_list['image'] = [cv2.imread(x) for x in in_df_filename_or_list['fileloc']]
+            in_df_filename_or_list['image'] = [cv2.cvtColor(cv2.imread(x), cv2.COLOR_BGR2GRAY)
+                                               for x in in_df_filename_or_list['fileloc']]
             return in_df_filename_or_list
         elif isinstance(in_df_filename_or_list, list):
             images = [cv2.imread(x) for x in in_df_filename_or_list]
@@ -201,8 +238,6 @@ class ImageLoader:
     def check_buffer(x, y, w, h, img, buffer):
         # Check that adding some buffer pixels does not go
         # outside the image bounds
-
-        xmin, ymin = (0, 0)
         xmax = img.shape[1]
         ymax = img.shape[0]
         # Check x min
@@ -267,7 +302,7 @@ class ImageLoader:
                 xy = (seg_dict['cx'], seg_dict['cy'])
                 width = seg_dict['rx']
                 height = seg_dict['ry']
-                ellipse = self.draw_elliptical_patch(xy, width, height, 0)
+                ellipse = self.draw_elliptical_patch(xy, width, height)
                 ax.add_patch(ellipse)
 
             elif shape == 'rect':
@@ -277,19 +312,30 @@ class ImageLoader:
             elif shape == 'none':
                 pass
 
-    def view_defects(self, n, defect_classes=None, group_by='defect_class', annotation_type='segmentations'):
+    def view_defects(self, sample_df=None, group_by='defect_class', annotation_type='segmentations'):
         """
+        View defect image without annotation and with annotations, side by side. Mark all annotations of the image
 
+        :param sample_df:
+        :param group_by:
+        :param annotation_type:
         :return:
         """
 
+        # If samples are not provided then use the ones in ImadeLoader object
+        sample_df = self.il_obj.sample_df if sample_df is None else sample_df
+        if sample_df.empty:
+            raise ValueError('Samples must either be provided as an input to this function or must be populated '
+                             'in the ImageLoader class. Use method load_n in ImageLoader to create n image samples')
+
         if annotation_type == 'bounding_box':
             annotation_column = 'bounding_box_coords'
-        else:
+        elif annotation_type == 'segmentations':
             annotation_column = 'region_shape_attributes'
+        else:
+            raise KeyError('Annotation type can only be one of bounding_box or segmentations')
 
         # Load 'n' images
-        sample_df = self.load_n(n, shuffle=True, defect_classes=defect_classes)
         sample_df = self.load_image(sample_df)
 
         # Create a separate visualization for each class
@@ -308,7 +354,7 @@ class ImageLoader:
                 filename = row['filename']
 
                 # Get all the annotations for this file
-                this_file_df = self.main_df[self.main_df['filename'] == filename]
+                this_file_df = self.il_obj.main_df[self.il_obj.main_df['filename'] == filename]
 
                 # Keep only the annotations belonging to this class
                 this_file_df = this_file_df[this_file_df['defect_class'] == group_name]
@@ -318,7 +364,7 @@ class ImageLoader:
                 ax = fig.add_subplot(group_df.shape[0], 2, index*2 + 1)
 
                 # Show
-                ax.imshow(row['image'])
+                ax.imshow(row['image'], cmap='gray')
                 ax.set_title(filename)
 
                 # Add a subplot to the figure
@@ -326,7 +372,7 @@ class ImageLoader:
                 ax = fig.add_subplot(group_df.shape[0], 2, index*2 + 2)
 
                 # Show the defect annotations
-                ax.imshow(row['image'])
+                ax.imshow(row['image'], cmap='gray')
                 ax.set_title(group_name)
 
                 for annotation in this_file_df[annotation_column]:
@@ -334,20 +380,21 @@ class ImageLoader:
 
         plt.show()
 
+
 if __name__ == '__main__':
-    img = ImageLoader()
+    imgv = ImageLoader()
 
     do_test_loader = False
 
     if do_test_loader:
         # Load all defects
-        all_defects = img.load_n(10, defect_classes=None)
+        all_defects = imgv.load_n(10, defect_classes=None)
 
         # Load one defect, input is a string
-        one_defect = img.load_n(10, defect_classes=img.defect_classes[0])
+        one_defect = imgv.load_n(10, defect_classes=imgv.defect_classes[0])
 
         # Load one defect, input is a string
-        two_defects = img.load_n(10, defect_classes=img.defect_classes[:2])
+        two_defects = imgv.load_n(10, defect_classes=imgv.defect_classes[:2])
 
         if all_defects.empty or one_defect.empty or two_defects.empty:
             raise ValueError('Unexpectedly, one or more of the DataFrames was empty')
@@ -356,6 +403,8 @@ if __name__ == '__main__':
     if do_test_viewer:
 
         # Load all defects
-        img.view_defects(10, defect_classes=None)
+        imgv.load_n(10, defect_classes=None)
+        dv = DefectViewer(imgv)
+        dv.view_defects()
 
-
+    print('Complete')
