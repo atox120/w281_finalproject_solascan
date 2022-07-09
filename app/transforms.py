@@ -237,31 +237,113 @@ class Show:
         return in_imgs
 
 
-class CreateMask:
+class CreateOnesMask:
     def __init__(self, in_imgs):
 
-        # Create a ones mask
+        # Create an ones mask
         self.shape = in_imgs.shape[-2:]
         self.mask = np.ones(self.shape)
         self.center = np.array([int(x/2) for x in self.shape])
+        self.circle_center = np.array([((x-1)/2) for x in self.shape])
 
     def horizontal_from_center(self, left_width, right_width, height, val=0):
         """
 
         :return:
         """
-        self.mask[self.center[0]-left_width:self.center[0]+right_width, self.center[1]-height:self.center+height] = val
 
-    def vertical_from_center(self, left_width, right_width, height, val=0):
+        top = self.center[1] - int(height / 2)
+        left = self.center[0] - left_width
+        width = left_width + right_width
+
+        self.offset_box(left, top, width, height, val)
+
+    def vertical_from_center(self, top_height, bottom_height, width, val=0):
         """
 
         :return:
         """
-        self.mask[self.center[0]-left_width:self.center[0]+right_width, self.center[1]-height:self.center+height] = val
+
+        left = self.center[0]-int(width/2)
+        top = self.center[1] - top_height
+        height = top_height + bottom_height
+
+        self.offset_box(left, top, width, height, val)
+
+    def center_box(self, width, height, val=0):
+        """
+
+        :return:
+        """
+
+        # Get the top left corner relative to center
+        left = self.center[0] - int(width/2)
+        top = self.center[1] - int(height/2)
+        self.offset_box(left, top, width, height, val)
+
+    def offset_box(self, left, top, width, height, val=0):
+        """
+
+        :return:
+        """
+        self.mask[left:left+width, top:top+height] = val
+
+    def center_circle(self, radius, inside=True, val=0):
+        """
+
+        :param radius:
+        :param inside:
+        :param val:
+        :return:
+        """
+
+        center_x = self.circle_center[0]
+        center_y = self.circle_center[1]
+
+        self.offset_circle(center_x, center_y, radius, inside, val)
+
+    def offset_circle(self, center_x, center_y, radius, inside=True, val=0):
+        """
+
+        :return:
+        """
+
+        # These are all the X and Y's that make up a circle
+        x, y = np.meshgrid(range(self.shape[0]), range(self.shape[1]))
+        r = np.sqrt((x-center_x)**2 + (y-center_y)**2)
+
+        # This is the radius of the circle
+        if inside:
+            index = r < radius
+        else:
+            index = r > radius
+
+        # These are the indices to keep
+        x = x[index]
+        y = y[index]
+
+        self.mask[x, y] = val
 
 
 if __name__ == '__main__':
-    do_shorthand = True
+    do_create_mask = True
+    if do_create_mask:
+        # Create a 10X10 image
+        cm = CreateOnesMask(np.zeros((10, 10)))
+        cm.horizontal_from_center(left_width=3, right_width=3, height=4)
+        print(cm.mask)
+
+        # Create a 10X10 image
+        cm = CreateOnesMask(np.zeros((10, 10)))
+        cm.vertical_from_center(top_height=3, bottom_height=3, width=4)
+        print(cm.mask)
+
+        # Create a 10X10 image
+        cm = CreateOnesMask(np.zeros((10, 10)))
+        cm.center_circle(radius=2)
+        print(cm.mask)
+
+    do_shorthand = False
     if do_shorthand:
         # Perform an FFT of an image
         # Load two samples of the defect class
