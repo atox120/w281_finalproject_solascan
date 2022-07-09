@@ -31,26 +31,14 @@ class ImageLoader:
 
         # This is the
         self.processed_annotation_path = os.path.join(this_file_location, "../data/processed_annotations.csv")
-        self.train_files = os.path.join(this_file_location, "../data/labels/train_images.csv")
-        self.test_files = os.path.join(this_file_location, "../data/labels/test_images.csv")
+        self.train_files = os.path.join(this_file_location, "../data/train.csv")
+        self.test_files = os.path.join(this_file_location, "../data/test.csv")
         self.train_file_loc = os.path.join(this_file_location, "../data/images/train")
         self.test_file_loc = os.path.join(this_file_location, "../data/images/test")
-
-        # These are all the files in the train folder
-        all_files = os.listdir(self.train_file_loc)
 
         # Load the multiple DataFrames
         self.annotations_df = pd.read_csv(self.processed_annotation_path)
         self.train_files_df = pd.read_csv(self.train_files)
-        self.train_files_df = self.train_files_df.rename(columns={'imagename': 'filename',
-                                                                  'annotatedname': 'annotated_filename'})
-
-        # load
-        defect_files = self.train_files_df['filename'].tolist()
-        good_files = [x for x in all_files if x not in defect_files]
-        # Create a DataFrame with no issues
-        good_df = pd.DataFrame({'filename': good_files, 'annotated_filename': good_files})
-        self.train_files_df = pd.concat((self.train_files_df, good_df))
 
         # Keep only one copy of the file and folder
         self.cv_files_df = pd.DataFrame()
@@ -62,9 +50,6 @@ class ImageLoader:
 
         # List of all defect classes
         self.defect_classes = self.annotations_df['defect_class'].unique().tolist()
-
-        # List of all filenames
-        self.all_files = self.annotations_df['filename'].unique().tolist()
 
         # Count of each class in complete dataset.
         self.instance_count = dict(self.annotations_df['defect_class'].value_counts())
@@ -328,9 +313,11 @@ class DefectViewer:
             ax.add_patch(rect)
 
         elif annotation_type == 'segmentations':
-
             # load the dictionary processed coordinates
             seg_dict = json.loads(annotation)
+            if not seg_dict:
+                return
+
             shape = seg_dict['name']
 
             if shape == 'polygon':
