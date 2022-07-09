@@ -15,7 +15,16 @@ class ImageLoader:
 
     """
 
-    def __init__(self):
+    def __init__(self, shuffle=True, defect_class=None):
+        """
+
+        :param shuffle: Shuffle the samples before
+        :param defect_class: None -> all defect classes. List -> ['FrontGridInterruption', 'Closed'], just these
+            classes. string -> 'FrontGridInterruption', one class
+        """
+
+        self.shuffle = shuffle
+        self.defect_class = defect_class
 
         # Where the processed annotations csv file is stored.
         this_file_location = os.path.abspath("")
@@ -59,6 +68,10 @@ class ImageLoader:
 
         # Count of each class in complete dataset.
         self.instance_count = dict(self.annotations_df['defect_class'].value_counts())
+
+    def __lshift__(self, n):
+
+        return self.load_n(n, shuffle=self.shuffle, defect_classes=self.defect_class)
 
     def split_train_cv(self,  train_split=0.8, seed=2**17):
         """
@@ -152,13 +165,47 @@ class DefectViewer:
     Visualizes defects and provides annotations in the form of bounding boxes or segmentations
     """
 
-    def __init__(self, il_obj):
+    def __init__(self, il_obj=None, resize_shape=(224, 224)):
         """
-
-        :param il_obj: Object of ImageLoader
+        :param il_obj: Object of ImageLoader. Default(None)
+        :param resize_shape: Shape to resize the images when Default(224, 224)
         """
 
         self.il_obj = il_obj
+        self.resize_shape = resize_shape
+
+    def __lshift__(self, sample_df):
+
+        return self.shift_image_load(sample_df, self.resize_shape)
+
+    @staticmethod
+    def shift_image_load(in_df_filename_or_list, resize_shape=(224, 224)):
+        """
+        Reads the images into numpy arrays from the source
+        :param in_df_filename_or_list: if DataFrame then reads the fileloc colum of the DataFrame and creates an
+            image column. If string then assumes that is a filename(with path) and returns numpy array. If list then
+            assumes a list of filenames(with path) and returns a list of numpy arrays
+        :param resize_shape:
+        :return: Numpy array of shape (N, W, H)
+        """
+
+        if isinstance(in_df_filename_or_list, pd.DataFrame):
+            images = [cv2.cvtColor(cv2.imread(x), cv2.COLOR_BGR2GRAY) for x in in_df_filename_or_list['fileloc']]
+        elif isinstance(in_df_filename_or_list, list):
+            images = [cv2.cvtColor(cv2.imread(x), cv2.COLOR_BGR2GRAY) for x in in_df_filename_or_list]
+            return images
+        elif isinstance(in_df_filename_or_list, str):
+            images = [cv2.cvtColor(cv2.imread(in_df_filename_or_list), cv2.COLOR_BGR2GRAY)]
+        else:
+            raise TypeError('in_df_filename_or_list can only be one of DataFrame, string or list')
+
+        images = [cv2.resize(x, resize_shape) for x in images]
+        images = np.stack(images, axis=0)
+
+        # Convert from 0 to 1
+        images = images/255.0
+
+        return images
 
     # noinspection PyUnresolvedReferences
     @staticmethod
@@ -321,6 +368,8 @@ class DefectViewer:
         :param annotation_type:
         :return:
         """
+        if self.il_obj is None:
+            raise ValueError('Object of class Imageloader is a required input when view_defects function is used')
 
         # If samples are not provided then use the ones in ImadeLoader object
         sample_df = self.il_obj.sample_df if sample_df is None else sample_df

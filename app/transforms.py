@@ -9,11 +9,14 @@ class FFT:
     def __init__(self, dim=2, axis=(-2, -1), return_which='both'):
         """
 
-        :param dim:
-        :param axis: Which dimension(s) to perform FFT on. When dim is 2 then axis should be a tuple. Default is the
-            last two dimensions. When dim is 1 then axis should be an integer dimension.
-        :param return_which: If 'both' (default) then returns (magnitude, phase). If 'magnitude' then return only the
-            magnitude. If 'phase' then return only the phase
+         :param dim:
+         :param axis: Which dimension(s) to perform FFT on.
+                When dim is 2 then axis should be a tuple. Default is the last two dimensions.
+                When dim is 1 then axis should be an integer dimension.
+         :param return_which:
+                If 'both' (default) then returns (orig_img, magnitude, phase).
+                If 'magnitude' then return only (orig_img, , magnitude).
+                If 'phase' then return only (orig_img, , phase)
         """
 
         self.dim = dim
@@ -31,6 +34,7 @@ class FFT:
         :param in_img:
         :return:
         """
+        # in_img = 1 - (in_img/255.0)
 
         if len(in_img.shape) == 2:
             in_img = in_img[np.newaxis, :, :]
@@ -65,18 +69,18 @@ class FFT:
         """
 
         # 2D fourier transform
-        transformed = np.fft.fftshift(np.fft.fft2(in_img * win, axes=self.axis))
+        transformed = np.fft.fftshift(np.fft.fft2(in_img * win, axes=self.axis), axes=self.axis)
 
         if self.return_which == 'both':
             magnitude = np.log10(np.abs(transformed))
             phase = np.angle(transformed)
-            return magnitude, phase
+            return in_img, magnitude, phase
         elif self.return_which == 'magnitude':
             magnitude = np.log10(np.abs(transformed))
-            return magnitude
+            return in_img, magnitude
         elif self.return_which == 'phase':
             phase = np.angle(transformed)
-            return phase
+            return in_img, phase
         else:
             raise TypeError('return_which must be one of magnitude, phase or both')
 
@@ -90,24 +94,82 @@ class FFT:
         """
 
         # 2D fourier transform
-        transformed = np.fft.fftshift(np.fft.fft(in_img * win, axis=self.axis))
+        transformed = np.fft.fftshift(np.fft.fft(in_img * win, axis=self.axis), axes=self.axis)
         if self.return_which == 'both':
-            magnitude = np.abs(transformed)
+            magnitude = np.log10(np.abs(transformed))
             phase = np.angle(transformed)
-            return magnitude, phase
+            return in_img, magnitude, phase
         elif self.return_which == 'magnitude':
-            magnitude = np.abs(transformed)
-            return magnitude
+            magnitude = np.log10(np.abs(transformed))
+            return in_img, magnitude
         elif self.return_which == 'phase':
             phase = np.angle(transformed)
-            return phase
+            return in_img, phase
         else:
             raise TypeError('return_which must be one of magnitude, phase or both')
 
 
-class Show:
+class IFFT:
 
-    def __init__(self, save_filename=None, do_show=False):
+    def __init__(self, mask=None, axis=(-2, -1)):
+        """
+        :param mask: A mask for masking out the
+        """
+
+        if mask is not None and len(mask.shape) == 2:
+            mask = mask[np.newaxis, :]
+
+        self.mask = mask
+        self.axis = axis
+
+    def __lshift__(self, fft_out):
+        """
+        Applies an FFT transform to an image and returns an image of the same size
+
+        :param fft_out: original_image, fft magnitude, fft phase (output of fft2 method of FFT class)
+        :return:
+        """
+
+        return self.ifft(fft_out)
+
+    # Display the fft and the image
+    def ifft(self, fft_out):
+        """
+
+        :param fft_out: original_image, fft magnitude, fft phase (output of fft2 method of FFT class)
+        :return:
+        """
+
+        # 2D fourier transform
+        orig_img, fft_mag, fft_phase = fft_out
+
+        # FFT function returns magnitude in log scale, bring it back to linear
+        fft_mag = 10**fft_mag
+
+        if self.mask is not None:
+            fft_mag = fft_mag * self.mask
+
+        # Convert the magnitude and phase back into a complex number
+        fft_complex = np.multiply(fft_mag, np.exp(1j * fft_phase))
+
+        # These are the FFT images
+        shift_inverted = np.fft.ifftshift(fft_complex, axes=self.axis)
+        inv_img = np.real(np.fft.ifft2(shift_inverted, axes=self.axis))
+
+        return orig_img, inv_img
+
+
+class Show:
+    """
+
+    """
+
+    def __init__(self, save_filename=None, do_show=True):
+        """
+
+        :param save_filename: Filename to save the output
+        :param do_show: Display a plot or not
+        """
 
         self.save_filename = save_filename
         self.do_show = do_show
@@ -127,7 +189,7 @@ class Show:
             in_imgs = [self._chk_shape(x) for x in in_imgs]
             return in_imgs
         else:
-            return TypeError('Input must be  a 2D numpy array of shape (W, H) or (N, W, H) or a list of numpy arrays')
+            raise TypeError('Input must be  a 2D numpy array of shape (W, H) or (N, W, H) or a list of numpy arrays')
 
     def __lshift__(self, in_imgs):
         """
@@ -138,7 +200,7 @@ class Show:
 
         in_imgs = self.format_input(in_imgs)
 
-        self.show(in_imgs)
+        return self.show(in_imgs)
 
     def show(self, in_imgs):
         """
@@ -162,10 +224,10 @@ class Show:
             # Walk through every column of the image
             for col_cnt in range(len(in_imgs)):
                 img_cnt = row_cnt*n_cols + col_cnt + 1
-                print(img_cnt)
-                ax = fig.add_subplot(n_rows, n_cols, row_cnt*n_cols + col_cnt + 1)
+                ax = fig.add_subplot(n_rows, n_cols, img_cnt)
                 ax.imshow(np.squeeze(in_imgs[col_cnt][row_cnt, :, :]), cmap='gray')
 
+        plt.tight_layout()
         if self.save_filename is not None:
             plt.savefig(self.save_filename)
 
@@ -175,12 +237,53 @@ class Show:
         return in_imgs
 
 
+class CreateMask:
+    def __init__(self, in_imgs):
+
+        # Create a ones mask
+        self.shape = in_imgs.shape[-2:]
+        self.mask = np.ones(self.shape)
+        self.center = np.array([int(x/2) for x in self.shape])
+
+    def horizontal_from_center(self, left_width, right_width, height, val=0):
+        """
+
+        :return:
+        """
+        self.mask[self.center[0]-left_width:self.center[0]+right_width, self.center[1]-height:self.center+height] = val
+
+    def vertical_from_center(self, left_width, right_width, height, val=0):
+        """
+
+        :return:
+        """
+        self.mask[self.center[0]-left_width:self.center[0]+right_width, self.center[1]-height:self.center+height] = val
+
+
 if __name__ == '__main__':
-    do_test_fft = True
+    do_shorthand = True
+    if do_shorthand:
+        # Perform an FFT of an image
+        # Load two samples of the defect class
+        n_samples = 10
+        images = DefectViewer() << (ImageLoader(defect_class='FrontGridInterruption') << n_samples)
+        # FFT the images and get a tuple (original_img, magnitude and phase)
+        fft_images = FFT(dim=2) << images
+
+        # Show the original image
+        fft_images = Show('fft') << fft_images
+
+        # Recreate the original image from the FFT and display
+        inv_images = IFFT(mask=np.ones(fft_images[0].shape[1:])) << fft_images
+
+        # Display the images
+        inv_images = Show('inv_fft') << inv_images
+
+    do_test_fft = False
     if do_test_fft:
         # Load 'n' images
         imgl = ImageLoader()
-        imgl.load_n(n=2)
+        imgl.load_n(n=10, defect_classes='FrontGridInterruption')
 
         # defect viewer
         dv = DefectViewer(imgl)
@@ -191,5 +294,6 @@ if __name__ == '__main__':
         images = np.stack(images, axis=0)
 
         # Perform an FFT of an image
-        t = Show('test') << (FFT() << images)
+        t = Show('test') << (FFT(dim=2, axis=(-2, -1)) << images) << \
+            (DefectViewer() << (ImageLoader(defect_class='FrontGridInterruption') << 2))
         print('done')
