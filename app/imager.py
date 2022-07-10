@@ -27,7 +27,11 @@ class ImageLoader:
         self.defect_class = defect_class
 
         # Where the processed annotations csv file is stored.
-        this_file_location = os.path.abspath("")
+        # if running windows, we need to change the backslashes to forward slashes. 
+        if os.name == 'nt':
+            this_file_location = os.path.abspath("").replace("\\","/")
+        else:
+            this_file_location = os.path.abspath("")
 
         # This is the
         self.processed_annotation_path = os.path.join(this_file_location, "../data/processed_annotations.csv")
@@ -45,7 +49,7 @@ class ImageLoader:
         self.sample_df = pd.DataFrame()
 
         # Keep only rows with test data
-        self.main_df = self.annotations_df.merge(self.train_files_df, on='filename', how='inner')
+        self.main_df = self.annotations_df[self.annotations_df['filename'].isin(self.train_files_df.filename.tolist())]
         self.main_df['sno'] = list(range(0, self.main_df.shape[0]))
 
         # List of all defect classes
