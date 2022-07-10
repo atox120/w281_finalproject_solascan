@@ -1,9 +1,11 @@
 import cv2
 import numpy as np
+
 from collections.abc import Iterable
-from scipy.ndimage import convolve
-from scipy.ndimage import convolve1d
+from scipy.ndimage import convolve, convolve1d
 from scipy.signal.windows import gaussian
+from skimage.feature import canny as sk_canny
+
 from app.imager import ImageLoader, DefectViewer
 
 
@@ -358,7 +360,7 @@ class CreateKernel:
             self.kernel_type = kernel
             self.kernel_val = self.generate_gaussian_kernel()
 
-        # Create a gaussian kernel
+        # Create a prewitt filter
         elif kernel == 'prewitt':
             # Check all parameters are passed
             self.required_params = ['axis']
@@ -367,7 +369,7 @@ class CreateKernel:
             self.kernel_type = kernel
             self.kernel_val = self.generate_prewitt_kernel()
 
-        # Create a gaussian kernel
+        # Create a sobel filter
         elif kernel == 'sobel':
             # Check all parameters are passed
             self.required_params = ['axis']
@@ -571,6 +573,52 @@ class Convolve:
             # Create 2d filter and normalise
             return in_imgs, convolve(in_imgs, kernel, mode=self.mode, cval=self.cval)
 
+class Canny:
+    """
+    Applies a canny filter to the image
+    Wrapper for the skimage implementation
+    https://scikit-image.org/docs/stable/auto_examples/edges/plot_canny.html
+    """
+
+    def __init__(self, sigma, low_threshold=None, high_threshold=None, 
+                 mask=None, use_quantiles=False, mode='constant', cval=0.0):
+        """
+        :param sigma: Standard deviation of the gaussian filter. 
+        :return:  
+        """
+        
+        self.sigma = sigma
+        self.lt = low_threshold 
+        self.ht = high_threshold 
+        self.msk = mask 
+        self.uq = use_quantiles
+        self.mde = mode
+        self.cval = cval       
+
+    def __lshift__(self, in_imgs):
+        """
+        Applies a kernel to images and returns that image with the kernel applied.
+        
+        :param kern_out: Output of the Kernel class (images, kernel)
+        :return:
+        """
+        return in_imgs, self.apply_filter(in_imgs)
+            
+    def apply_filter(self, in_imgs):
+        """
+        Applies a canny filter, essentially a wrapper for the scikit-image.feature.canny() method.
+        
+        To do: not vectorised. Perhaps can be implemented with joblib?
+        https://scikit-image.org/docs/stable/user_guide/tutorial_parallelization.html
+        
+        """
+        # For loop to apply the canny function to each img in the image array
+        out_array = np.array([sk_canny(in_imgs[i], sigma=self.sigma, low_threshold=self.lt, high_threshold=self.ht, 
+                              mask=self.msk, use_quantiles=self.uq, mode=self.mde, cval=self.cval
+                                ) for i in range(len(in_imgs))])
+        
+        return out_array    
+    
 
 if __name__ == '__main__':
 
