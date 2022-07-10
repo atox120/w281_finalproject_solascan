@@ -32,11 +32,14 @@ dependencies:
   - certifi=2022.6.15=py37h06a4308_0
   - cffi=1.15.1=py37h43b0acd_0
   - charset-normalizer=2.1.0=pyhd8ed1ab_0
+  - cloudpickle=2.0.0=pyhd3eb1b0_0
   - colorama=0.4.5=pyhd8ed1ab_0
   - cryptography=37.0.2=py37h38fbfac_0
   - cudatoolkit=11.7.0=hd8887f6_10
   - cudnn=8.4.1.50=hed8a83a_0
   - cycler=0.11.0=pyhd8ed1ab_0
+  - cytoolz=0.11.0=py37h7b6447c_0
+  - dask-core=2021.10.0=pyhd3eb1b0_0
   - dbus=1.13.6=h5008d03_3
   - debugpy=1.6.0=py37hd23a5d3_0
   - decorator=5.1.1=pyhd8ed1ab_0
@@ -57,6 +60,7 @@ dependencies:
   - fonttools=4.34.2=py37h540881e_0
   - freeglut=3.2.2=h9c3ff4c_1
   - freetype=2.10.4=h0708190_1
+  - fsspec=2022.3.0=py37h06a4308_0
   - gettext=0.19.8.1=h73d1719_1008
   - giflib=5.2.1=h36c2ea0_2
   - glib=2.70.2=h780b84a_4
@@ -70,6 +74,7 @@ dependencies:
   - hdf5=1.12.1=nompi_h2386368_104
   - icu=70.1=h27087fc_0
   - idna=3.3=pyhd8ed1ab_0
+  - imageio=2.9.0=pyhd3eb1b0_0
   - importlib-metadata=4.11.4=py37h89c1867_0
   - importlib_metadata=4.11.4=hd8ed1ab_0
   - importlib_resources=5.8.0=pyhd8ed1ab_0
@@ -161,6 +166,7 @@ dependencies:
   - libzlib=1.2.12=h166bdaf_1
   - llvm-openmp=14.0.4=he0ac6c6_0
   - llvmlite=0.38.1=py37h0761922_0
+  - locket=1.0.0=py37h06a4308_0
   - lz4-c=1.9.3=h9c3ff4c_1
   - magma=2.5.4=h6103c52_2
   - markupsafe=2.1.1=py37h540881e_1
@@ -201,6 +207,7 @@ dependencies:
   - pandoc=2.18=ha770c72_0
   - pandocfilters=1.5.0=pyhd8ed1ab_0
   - parso=0.8.3=pyhd8ed1ab_0
+  - partd=1.2.0=pyhd3eb1b0_1
   - pcre=8.45=h9c3ff4c_0
   - pexpect=4.8.0=pyh9f0ad1d_2
   - pickleshare=0.7.5=py_1003
@@ -232,6 +239,8 @@ dependencies:
   - python_abi=3.7=2_cp37m
   - pytorch=1.11.0=cuda112py37hfcfbd4c_202
   - pytz=2022.1=pyhd8ed1ab_0
+  - pywavelets=1.3.0=py37h7f8727e_0
+  - pyyaml=6.0=py37h7f8727e_1
   - pyzmq=23.2.0=py37h0c0c2a8_0
   - qt-main=5.15.4=ha5833f6_2
   - qtconsole=5.3.1=pyhd8ed1ab_0
@@ -240,6 +249,7 @@ dependencies:
   - readline=8.1.2=h0f457ee_0
   - requests=2.28.1=pyhd8ed1ab_0
   - resampy=0.3.0=pyhd8ed1ab_0
+  - scikit-image=0.19.2=py37h51133e4_0
   - scikit-learn=1.0.2=py37hf9e9bfc_0
   - scipy=1.7.3=py37hf2a6cf1_0
   - send2trash=1.8.0=pyhd8ed1ab_0
@@ -254,9 +264,11 @@ dependencies:
   - tbb=2021.5.0=h924138e_1
   - terminado=0.15.0=py37h89c1867_0
   - threadpoolctl=3.1.0=pyh8a188c0_0
+  - tifffile=2020.10.1=py37hdd07704_2
   - tinycss2=1.1.1=pyhd8ed1ab_0
   - tk=8.6.12=h27826a3_0
   - toml=0.10.2=pyhd8ed1ab_0
+  - toolz=0.11.2=pyhd3eb1b0_0
   - torchtext=0.12.0=py37
   - torchvision=0.12.0=cuda112py37h8d36882_1
   - tornado=6.2=py37h540881e_0
@@ -294,6 +306,7 @@ dependencies:
   - xorg-xextproto=7.3.0=h7f98852_1002
   - xorg-xproto=7.0.31=h7f98852_1007
   - xz=5.2.5=h516909a_1
+  - yaml=0.2.5=h7b6447c_0
   - zeromq=4.3.4=h9c3ff4c_1
   - zipp=3.8.0=pyhd8ed1ab_0
   - zlib=1.2.12=h166bdaf_1
