@@ -4,7 +4,7 @@ from collections.abc import Iterable
 from scipy.ndimage import convolve
 from scipy.ndimage import convolve1d
 from scipy.signal.windows import gaussian
-from app.imager import ImageLoader, DefectViewer
+from app.imager import ImageLoader, DefectViewer, Show
 
 
 class FFT:
@@ -160,84 +160,6 @@ class IFFT:
         inv_img = np.real(np.fft.ifft2(shift_inverted, axes=self.axis))
 
         return orig_img, inv_img
-
-
-class Show:
-    """
-
-    """
-
-    def __init__(self, save_filename=None, do_show=True):
-        """
-
-        :param save_filename: Filename to save the output
-        :param do_show: Display a plot or not
-        """
-
-        self.save_filename = save_filename
-        self.do_show = do_show
-
-    @staticmethod
-    def _chk_shape(in_imgs):
-        if len(in_imgs.shape) == 2:
-            in_imgs = in_imgs[np.newaxis, :]
-
-        return in_imgs
-
-    def format_input(self, in_imgs):
-        if isinstance(in_imgs, np.ndarray):
-            in_imgs = self._chk_shape(in_imgs)
-            return in_imgs
-        elif isinstance(in_imgs, Iterable):
-            in_imgs = [self._chk_shape(x) for x in in_imgs]
-            return in_imgs
-        else:
-            raise TypeError('Input must be  a 2D numpy array of shape (W, H) or (N, W, H) or a list of numpy arrays')
-
-    def __lshift__(self, in_imgs):
-        """
-
-        :param in_imgs: One numpy array or list or tuple of numpy arrays
-        :return:
-        """
-
-        in_imgs = self.format_input(in_imgs)
-
-        return self.show(in_imgs)
-
-    def show(self, in_imgs):
-        """
-
-        :param in_imgs: List or tuple of numpy array of shape (W, H) or (N, W, H)
-        :return:
-        """
-        import matplotlib.pyplot as plt
-
-        if isinstance(in_imgs, np.ndarray):
-            in_imgs = [in_imgs, ]
-
-        # Number of cols and number of rows
-        n_cols = len(in_imgs)
-        n_rows = in_imgs[0].shape[0]
-        fig = plt.figure(figsize=(6.4*n_cols, 4.8*n_rows))
-
-        # Assumes every item on the list has the same number of dimensions
-        # Walk through every image
-        for row_cnt in range(in_imgs[0].shape[0]):
-            # Walk through every column of the image
-            for col_cnt in range(len(in_imgs)):
-                img_cnt = row_cnt*n_cols + col_cnt + 1
-                ax = fig.add_subplot(n_rows, n_cols, img_cnt)
-                ax.imshow(np.squeeze(in_imgs[col_cnt][row_cnt, :, :]), cmap='gray')
-
-        plt.tight_layout()
-        if self.save_filename is not None:
-            plt.savefig(self.save_filename)
-
-        if self.do_show:
-            plt.show()
-
-        return in_imgs
 
 
 class CreateOnesMask:

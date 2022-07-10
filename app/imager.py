@@ -4,8 +4,23 @@ import json
 import copy
 import numpy as np
 import pandas as pd
+from skimage import exposure
 import matplotlib.pyplot as plt
+from random import shuffle as shuf
 import matplotlib.patches as patches
+from collections.abc import Iterable
+
+
+def input_check(indict, key, default, out_dict, exception=False):
+    try:
+        out_dict[key] = indict[key]
+        del indict[key]
+    except KeyError:
+        if exception:
+            raise KeyError(f'{key} is a required input and was not provided')
+        else:
+            if default is not None:
+                out_dict[key] = default
 
 
 class ImageLoader:
@@ -44,7 +59,8 @@ class ImageLoader:
         self.cv_files_df = pd.DataFrame()
         self.sample_df = pd.DataFrame()
 
-        # Keep only rows with test data
+        # Keep only rows with train data
+        # self.main_df = self.annotations_df.merge(self.train_files_df, on='filename', how='inner')
         self.main_df = self.annotations_df.merge(self.train_files_df, on='filename', how='inner')
         self.main_df['sno'] = list(range(0, self.main_df.shape[0]))
 
@@ -417,11 +433,265 @@ class DefectViewer:
         plt.show()
 
 
+class Show:
+    """
+
+    """
+
+    def __init__(self, save_filename=None, do_show=True, num_images=None):
+        """
+
+        :param save_filename: Filename to save the output
+        :param do_show: Display a plot or not
+        :param num_images: If None then all images, otherwise the number listed
+        """
+
+        self.save_filename = save_filename
+        self.do_show = do_show
+        self.num_images = num_images
+
+    @staticmethod
+    def _chk_shape(in_imgs):
+        if len(in_imgs.shape) == 2:
+            in_imgs = in_imgs[np.newaxis, :]
+
+        return in_imgs
+
+    def format_input(self, in_imgs):
+        if isinstance(in_imgs, np.ndarray):
+            in_imgs = self._chk_shape(in_imgs)
+            return in_imgs
+        elif isinstance(in_imgs, Iterable):
+            in_imgs = [self._chk_shape(x) for x in in_imgs]
+            return in_imgs
+        else:
+            raise TypeError('Input must be  a 2D numpy array of shape (W, H) or (N, W, H) or a list of numpy arrays')
+
+    def __lshift__(self, in_imgs):
+        """
+
+        :param in_imgs: One numpy array or list or tuple of numpy arrays
+        :return:
+        """
+
+        in_imgs = self.format_input(in_imgs)
+
+        return self.show(in_imgs)
+
+    def show(self, in_imgs):
+        """
+
+        :param in_imgs: List or tuple of numpy array of shape (W, H) or (N, W, H)
+        :return:
+        """
+
+        if isinstance(in_imgs, np.ndarray):
+            in_imgs = [in_imgs, ]
+
+        # Number of cols and number of rows
+        n_cols = len(in_imgs)
+        n_rows = min(in_imgs[0].shape[0], self.num_images)
+        fig = plt.figure(figsize=(6.4*n_cols, 4.8*n_rows))
+
+        # Which images to plot
+        total_rows = in_imgs[0].shape[0]
+        accepted_rows = list(range(total_rows))
+        shuf(accepted_rows)
+
+        if self.num_images is not None:
+            accepted_rows = accepted_rows[:self.num_images]
+
+        # Assumes every item on the list has the same number of dimensions
+        # Walk through every image
+        plt_rows = 0
+        for row_cnt in range(total_rows):
+            # Only those rows that were accepted are plotted
+            if row_cnt not in accepted_rows:
+                continue
+
+            # Walk through every column of the image
+            for col_cnt in range(len(in_imgs)):
+                img_cnt = plt_rows*n_cols + col_cnt + 1
+                ax = fig.add_subplot(n_rows, n_cols, img_cnt)
+                ax.imshow(np.squeeze(in_imgs[col_cnt][row_cnt, :, :]), cmap='gray')
+
+            plt_rows += 1
+
+        plt.tight_layout()
+        if self.save_filename is not None:
+            plt.savefig(self.save_filename)
+
+        if self.do_show:
+            plt.show()
+
+        return in_imgs
+
+
+class Equalize:
+
+    def __init__(self, mode='histo', **kwargs):
+        """
+
+        :param mode: Histo, Gamma,
+        :param kwargs:
+        """
+
+        accepted_modes = ['stretch', 'histo', 'adaptive', 'sigmoid', 'gamma']
+        if mode not in accepted_modes:
+            raise KeyError(f'Unsupported mode, it should be one of {accepted_modes}')
+        self.mode = mode
+
+        self.params = {}
+        # indict, key, default, out_dict, exception=False
+        if mode == "adaptive":
+            # Check if kernel_size input is provided
+            input_check(kwargs, 'kernel_size', None, self.params, exception=False)
+
+            # Check if clip input is provided
+            input_check(kwargs, 'clip_limit', None, self.params, exception=False)
+
+            # Check if clip input is provided
+            input_check(kwargs, 'nbins', None, self.params, exception=False)
+        elif mode == 'sigmoid':
+            # Check if kernel_size input is provided
+            input_check(kwargs, 'cutoff', 0.5, self.params, exception=False)
+
+            # Check if clip input is provided
+            input_check(kwargs, 'gain', 10, self.params, exception=False)
+
+            # Check if clip input is provided
+            input_check(kwargs, 'inverse', False, self.params, exception=False)
+        elif mode == 'gamma':
+            # Check if kernel_size input is provided
+            input_check(kwargs, 'gamma', 1, self.params, exception=True)
+
+            # Check if clip input is provided
+            input_check(kwargs, 'gain', 1, self.params, exception=False)
+
+        if kwargs:
+            raise KeyError(f'Unused keys in kwargs {kwargs.keys()}')
+
+    def get(self, in_imgs):
+
+        if self.mode == 'histo':
+            return self.histogram_equalization(in_imgs)
+        elif self.mode == 'stretch':
+            return self.contrast_stretching(in_imgs)
+        elif self.mode == 'sigmoid':
+            return self.adjust_sigmoid(in_imgs)
+        elif self.mode == 'gamma':
+            return self.adjust_gamma(in_imgs)
+        elif self.mode == 'adaptive':
+            return self.adaptive_histogram_equalization(in_imgs)
+        else:
+            raise KeyError('Hmm... something went wrong')
+
+    @staticmethod
+    def contrast_stretching(in_imgs):
+        """
+        Stretches the values of the pixels from 0 to 1, irrespective of teh starting scale
+
+        :param in_imgs: Input images of shape (N, W, H)
+        :return:
+        """
+
+        all_min = np.min(in_imgs, axis=(-2, -1), keepdims=True)
+        all_max = np.max(in_imgs, axis=(-2, -1), keepdims=True)
+        out_img = (in_imgs - all_min) / (all_max - all_max)
+
+        return out_img
+
+    def adjust_sigmoid(self, in_imgs):
+        """
+        Performs a sigmoid correction on the input image
+
+        :param in_imgs: Input images of shape (N, W, H)
+        :return:
+        """
+
+        # Sign for the sigmoid
+        sign = -1 if self.params['inverse'] else 1
+
+        # Cutoff point for the sigmoid
+        cutoff = self.params['cutoff']
+
+        # Gain parameter controls the steepness of the sigmoid
+        gain = self.params['gain']
+
+        return 1/(1 + np.exp(-sign * gain * (in_imgs - cutoff)))
+
+    def adjust_gamma(self, in_imgs):
+        """
+        Performs a sigmoid correction on the input image
+
+        :param in_imgs: Input images of shape (N, W, H)
+        :return:
+        """
+
+        # Cutoff point for the sigmoid
+        gamma = self.params['gamma']
+
+        # Gain parameter controls the steepness of the sigmoid
+        gain = self.params['gain']
+
+        return gain*in_imgs**gamma
+
+    def adaptive_histogram_equalization(self, in_imgs):
+        """
+        Contrast limited adaptive histogram equalization of each image
+
+        :param in_imgs: Input images of shape (N, W, H)
+        :return:
+        """
+
+        # Convert the input to integer datatype
+        in_imgs = (in_imgs * 255).astype('uint8')
+
+        # Returns the counts per axis
+        equalized_histo = [exposure.equalize_adapthist(x, **self.params) for x in in_imgs]
+
+        return np.stack(equalized_histo, axis=0)
+
+    def histogram_equalization(self, in_imgs):
+        """
+        Standard histogram equalization of each image
+
+        :param in_imgs: Input images of shape (N, W, H)
+        :return:
+        """
+
+        # Convert the input to integer datatype
+        in_imgs = (in_imgs * 255).astype('uint8')
+
+        # Returns the counts per axis
+        equalized_histo = [exposure.equalize_hist(x, **self.params) for x in in_imgs]
+
+        return np.stack(equalized_histo, axis=0)
+
+
 if __name__ == '__main__':
     imgv = ImageLoader()
 
-    do_test_loader = False
+    do_test_equalization = True
+    if do_test_equalization:
+        sdf = imgv.load_n(1, defect_classes='FrontGridInterruption')
+        dv = DefectViewer(imgv)
 
+        imgs = dv.shift_image_load(sdf)
+
+        # Equalize using sigmoid
+        # eq = Equalize(mode='sigmoid', gain=10, cutoff=0.5, inverse=True)
+        # eq = Equalize(mode='gamma', gain=1, gamma=0.2)
+        eq = Equalize(mode='histo')
+        imgso = eq.get(imgs)
+
+        plt.scatter(imgs.flatten(), imgso.flatten())
+        plt.show()
+
+        # eq.histogram_equalization(imgs)
+        # eq.adaptive_histogram_equalization(imgs)
+
+    do_test_loader = False
     if do_test_loader:
         # Load all defects
         all_defects = imgv.load_n(10, defect_classes=None)
@@ -435,7 +705,7 @@ if __name__ == '__main__':
         if all_defects.empty or one_defect.empty or two_defects.empty:
             raise ValueError('Unexpectedly, one or more of the DataFrames was empty')
 
-    do_test_viewer = True
+    do_test_viewer = False
     if do_test_viewer:
 
         # Load all defects
