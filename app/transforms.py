@@ -339,6 +339,8 @@ class CreateKernel:
         :param dim:
         :param kernel: Type of kernel to create options include:
             'gaussian': gaussian kernel
+            'sobel': sobel filter
+            'prewitt filter': 
             'custom': custom specified kernel
         :return:
         """
@@ -351,27 +353,41 @@ class CreateKernel:
         if kernel == 'gaussian':
             # Check all parameters are passed
             self.required_params = ['size', 'std']
-            missing_list = self._check_required_params()
+            self._check_required_params()
 
             self.kernel_type = kernel
             self.kernel_val = self.generate_gaussian_kernel()
 
-            # pass a custom kernel
+        # Create a gaussian kernel
+        elif kernel == 'prewitt':
+            # Check all parameters are passed
+            self.required_params = ['axis']
+            self._check_required_params()
+
+            self.kernel_type = kernel
+            self.kernel_val = self.generate_prewitt_kernel()
+
+        # Create a gaussian kernel
+        elif kernel == 'sobel':
+            # Check all parameters are passed
+            self.required_params = ['axis']
+            self._check_required_params()
+
+            self.kernel_type = kernel
+            self.kernel_val = self.generate_sobel_kernel()
+            
+        # pass a custom kernel
         elif kernel == 'custom':
             # Check all parameters are passed
             self.required_params = ['custom_kernel']
-            missing_list = self._check_required_params()
+            self._check_required_params()
 
             self.kernel_type = kernel
             self.kernel_params = kwargs
             self.kernel_val = self.kernel_params['custom_kernel']
 
         else:
-            raise KeyError('Kernel type not recognised. Allowable values: gaussian, custom')
-
-        # Check all required parameters are there:
-        if len(self.missing_list) > 0:
-            raise KeyError(f'Missing required parameters: {missing_list}')
+            raise KeyError('Kernel type not recognised. Allowable values: gaussian, custom, prewitt, sobel')
 
     def get(self):
 
@@ -388,23 +404,27 @@ class CreateKernel:
     def _check_required_params(self):
         """
         Checks that all the required kwargs have been passed
+        :param :
+        :return:
         """
 
-        missing_list = []
         for param in self.required_params:
             if param not in self.kernel_params.keys():
-                missing_list.append(param)
+                self.missing_list.append(param)
             else:
                 pass
-
-        return missing_list
+        
+        # Check all required parameters are there:
+        if len(self.missing_list) > 0:
+            raise KeyError(f'Missing required parameters: {missing_list}')
 
     def generate_gaussian_kernel(self):
         """
-        Generates a gaussian kernel
-
-        self.key
-
+        Generates a gaussian kernel. Requires the size and std to be parsed during
+        instantiation as part of key-value kwargs. 
+        
+        :param :
+        :return: numpy array with the filter 
         """
         # Extract size and sigma
         size = self.kernel_params['size']
@@ -420,8 +440,58 @@ class CreateKernel:
             # Create 2d filter and normalise
             gaussian_2d = np.outer(gaussian_1d, gaussian_1d)
             return gaussian_2d / gaussian_2d.sum()
+        
+    def generate_sobel_kernel(self):
+        """
+        Generates a sobel kernel, requires the 'axis' argument to be parsed during 
+        instantiation.
+        ** Note by definition, this is a 2D kernel, thus if the dimension argument is 
+        1 this will be overridden to a 2D kernel. **
+        
+        :param :
+        :return: numpy array with the filter 
+        """
+        # Extract axis
+        axis = self.kernel_params['axis']
 
+        if self.dim == 1:
+            print('Warning, forcing 2D dimensionality, despite 1D being specified')
+            self.dim = 2
+        
+        #Check axis and create filter
+        if int(axis) not in (0,1):
+            raise ValueError(f'for a 2D sobel filter, axis must be equal to 0 or 1 but \'{axis}\' was provided.')
+        elif int(axis) == 0:
+            return np.array([[1,0,-1],[2,0,-2],[1,0,-1]])
+        elif int(axis) == 1:
+            return np.array([[1,0,-1],[2,0,-2],[1,0,-1]]).T
+                              
+    def generate_prewitt_kernel(self):
+        """
+        Generates a prewitt kernel, requires the 'axis' argument to be parsed during 
+        instantiation.
+        ** Note by definition, this is a 2D kernel, thus if the dimension argument is 
+        1 this will be overridden to a 2D kernel. **
+        
+        :param :
+        :return: numpy array with the filter 
+        """
+        # Extract axis
+        axis = self.kernel_params['axis']
 
+        if self.dim == 1:
+            print('Warning, forcing 2D dimensionality, despite 1D being specified')
+            self.dim = 2
+        
+        #Check axis and create filter
+        if int(axis) not in (0,1):
+            raise ValueError(f'for a 2D prewitt filter, axis must be equal to 0 or 1 but \'{axis}\' was provided.')
+        elif int(axis) == 0:
+            return np.array([[1,0,-1],[1,0,-1],[1,0,-1]])
+        elif int(axis) == 1:
+            return np.array([[1,0,-1],[1,0,-1],[1,0,-1]]).T
+
+        
 class Convolve:
     """
     Convolves a kernel with the array
@@ -525,9 +595,21 @@ if __name__ == '__main__':
 
         # ck = CreateKernel(bim=2, kernel='gaussian', size=3, std=8)
         c_imgs = Convolve(axis=-2) << (CreateKernel(dim=1, kernel='gaussian', size=10, std=8) << images)
-
+        
         # Show the original image
         c_imgs = Show('1dgaussian_x') << c_imgs
+        
+        # test sobel filter
+        c_imgs = Convolve(axis=-2) << (CreateKernel(dim=2, kernel='sobel', axis=0) << images)
+        
+        # Show the original image
+        Show('2dgaussian') << c_imgs
+        
+        # test prewitt filter
+        c_imgs = Convolve(axis=-2) << (CreateKernel(dim=2, kernel='prewitt', axis=0) << images)
+        
+        # Show the original image
+        Show('2dgaussian') << c_imgs
 
     do_create_mask = False
     if do_create_mask:
