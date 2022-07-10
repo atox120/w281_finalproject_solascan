@@ -1,9 +1,10 @@
 # Image files
-data/images/
+data/
 .idea/*
 *.pyc
 *.png
 *.jpg
+*.zip
 app/__pycache__/
 
 # Jupyter Notebook
