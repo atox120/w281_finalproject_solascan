@@ -5,6 +5,7 @@ from collections.abc import Iterable
 from scipy.ndimage import convolve, convolve1d
 from scipy.signal.windows import gaussian
 from skimage.feature import canny as sk_canny
+from skimage.feature import hog as sk_hog
 
 from app.imager import ImageLoader, DefectViewer
 
@@ -618,8 +619,70 @@ class Canny:
                                 ) for i in range(len(in_imgs))])
         
         return out_array    
-    
 
+
+
+class HOG:
+    """
+    Extracts a histogram of orineted gradients for an input image. 
+    Wrapper for the skimage implementation
+    https://scikit-image.org/docs/stable/api/skimage.feature.html#skimage.feature.hog
+
+    """
+
+    def __init__(self, orientations=9, pixels_per_cell=(8, 8), cells_per_block=(3, 3), 
+                 block_norm='L2-Hys', transform_sqrt=False, feature_vector=True):
+        """
+        Note the following parameters are not configurable given our datapoints:
+        - visualize = True: returns the image of the HOG
+        - multichannel = False: does not allow multichannel images.
+        - channel_axis = None: does not allow specification of the channel axis. 
+        
+        :param orientation: number of orientation bins.
+        :param pixels_per_cell: tupel of the number of cells per block. 
+        
+        :return:  
+        """
+        
+        self.orn = orientations
+        self.ppc = pixels_per_cell 
+        self.cpb = cells_per_block 
+        self.bn = block_norm 
+        self.sqrt = transform_sqrt
+        self.fv = feature_vector
+        self.viz = True # do not adjust - always return visualisation   
+
+    def __lshift__(self, in_imgs):
+        """
+        Applies a filter to images and returns that image with the filter applied.
+        
+        :param in_imgs: Output of the Kernel class (images, kernel)
+        :return: original images, the filtered image.
+        """
+        return in_imgs, self.apply_filter(in_imgs)
+            
+    def apply_filter(self, in_imgs):
+        """
+        Applies a canny filter, essentially a wrapper for the scikit-image.feature.hog() method.
+        
+        To do: not vectorised. Perhaps can be implemented with joblib?
+        https://scikit-image.org/docs/stable/user_guide/tutorial_parallelization.html
+        
+        """
+        # For loop to apply the HOG filter to each img in the image array
+        # the sk_hog method returns a tuple, and we are only interested in the image, 
+        # which is the second element.
+        processed = [sk_hog(in_imgs[i], orientations=self.orn, pixels_per_cell=self.ppc, 
+                                     cells_per_block=self.cpb, block_norm=self.bn, transform_sqrt=self.sqrt, 
+                                     visualize = True, feature_vector=self.fv
+                                    ) for i in range(len(in_imgs))]
+        
+        # return only the hog image. 
+        out_array = np.array([out_pair[1] for out_pair in processed])
+        
+        return out_array
+    
+    
 if __name__ == '__main__':
 
     do_kernel = True
