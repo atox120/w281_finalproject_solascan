@@ -544,7 +544,7 @@ class Exposure:
         :param kwargs:
         """
 
-        accepted_modes = ['stretch', 'histo', 'adaptive', 'sigmoid', 'gamma']
+        accepted_modes = ['stretch', 'histo', 'adaptive', 'sigmoid', 'gamma', 'invert', 'mean_norm']
         if mode not in accepted_modes:
             raise KeyError(f'Unsupported mode, it should be one of {accepted_modes}')
         self.mode = mode
@@ -586,6 +586,9 @@ class Exposure:
         :return:
         """
 
+        if isinstance(in_imgs, tuple):
+            in_imgs = in_imgs[-1]
+
         return in_imgs, self.get(in_imgs)
 
     def get(self, in_imgs):
@@ -600,6 +603,10 @@ class Exposure:
             return self.adjust_gamma(in_imgs)
         elif self.mode == 'adaptive':
             return self.adaptive_histogram_equalization(in_imgs)
+        elif self.mode == 'invert':
+            return self.invert(in_imgs)
+        elif self.mode == 'mean_norm':
+            return self.mean_norm(in_imgs)
         else:
             raise KeyError('Hmm... something went wrong')
 
@@ -652,6 +659,37 @@ class Exposure:
         gain = self.params['gain']
 
         return gain*in_imgs**gamma
+
+    @staticmethod
+    def invert(in_imgs):
+        """
+        Inverts the brightness of the image
+
+        :param in_imgs: Input images of shape (N, W, H)
+        :return:
+        """
+
+        in_imgs = 1 - in_imgs
+
+        return in_imgs
+
+    @staticmethod
+    def mean_norm(in_imgs):
+        """
+        Shifts the image such that the mean is at 0.5
+
+        :param in_imgs: Input images of shape (N, W, H)
+        :return:
+        """
+
+        mean = np.mean(in_imgs, axis=(-2, -1), keepdims=True)
+        in_imgs += (0.5 - mean)
+
+        # Ensure the results are within bound
+        in_imgs[in_imgs < 0] = 0
+        in_imgs[in_imgs > 1] = 1
+
+        return in_imgs
 
     def adaptive_histogram_equalization(self, in_imgs):
         """

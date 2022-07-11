@@ -39,25 +39,28 @@ class FFT:
             if isinstance(axis, Iterable):
                 raise TypeError('A single dimension FFT can only be done on one axis')
 
-    def __lshift__(self, in_img):
+    def __lshift__(self, in_imgs):
         """
         Applies an FFT transform to an image and returns an image of the same size
 
-        :param in_img:
+        :param in_imgs:
         :return:
         """
-        # in_img = 1 - (in_img/255.0)
 
-        if len(in_img.shape) == 2:
-            in_img = in_img[np.newaxis, :, :]
+        # If it is th eoutput of a different function then take the last value in the tuple
+        if isinstance(in_imgs, tuple):
+            in_imgs = in_imgs[-1]
+
+        if len(in_imgs.shape) == 2:
+            in_imgs = in_imgs[np.newaxis, :, :]
 
         # Create a window function
-        win = self.create_window(in_img)
+        win = self.create_window(in_imgs)
 
         if self.dim == 2:
-            return self.fft2(in_img, win)
+            return self.fft2(in_imgs, win)
         else:
-            return self.fft(in_img, win)
+            return self.fft(in_imgs, win)
 
     @staticmethod
     def create_window(in_img):
