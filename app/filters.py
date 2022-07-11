@@ -89,6 +89,11 @@ class CreateKernel:
         :param in_imgs:
         :return:
         """
+
+        # If it is the output of a different function then take the last value in the tuple
+        if isinstance(in_imgs, tuple):
+            in_imgs = in_imgs[-1]
+
         return in_imgs, self.kernel_val
 
     def _check_required_params(self):
@@ -227,7 +232,11 @@ class Convolve:
 
         in_imgs, kernel = kern_out
 
-        return self.apply_filter(in_imgs, kernel)
+        # If it is th eoutput of a different function then take the last value in the tuple
+        if isinstance(in_imgs, tuple):
+            in_imgs = in_imgs[-1]
+
+        return in_imgs, self.apply_filter(in_imgs, kernel)
 
     def apply_filter(self, in_imgs, kernel):
         """
@@ -256,10 +265,10 @@ class Convolve:
                 kernel = kernel[np.newaxis, :]
 
         if dim == 1:
-            return in_imgs, convolve1d(in_imgs, kernel, mode=self.mode, axis=axis)
+            return convolve1d(in_imgs, kernel, mode=self.mode, axis=axis)
         elif dim == 2:
             # Create 2d filter and normalise
-            return in_imgs, convolve(in_imgs, kernel, mode=self.mode, cval=self.cval)
+            return convolve(in_imgs, kernel, mode=self.mode, cval=self.cval)
 
 
 class Canny:
@@ -302,6 +311,11 @@ class Canny:
         :param in_imgs: Images of the shape (N, W, H)
         :return:
         """
+
+        # If it is th eoutput of a different function then take the last value in the tuple
+        if isinstance(in_imgs, tuple):
+            in_imgs = in_imgs[-1]
+
         return in_imgs, self.apply_filter(in_imgs)
 
     def apply_filter(self, in_imgs):
@@ -360,6 +374,11 @@ class HOG:
         :param in_imgs: Output of the Kernel class (images, kernel)
         :return: original images, the filtered image.
         """
+
+        # If it is th eoutput of a different function then take the last value in the tuple
+        if isinstance(in_imgs, tuple):
+            in_imgs = in_imgs[-1]
+
         return in_imgs, self.apply_filter(in_imgs)
 
     def apply_filter(self, in_imgs):
