@@ -232,7 +232,7 @@ class Convolve:
 
         in_imgs, kernel = kern_out
 
-        # If it is th eoutput of a different function then take the last value in the tuple
+        # If it is the output of a different function then take the last value in the tuple
         if isinstance(in_imgs, tuple):
             in_imgs = in_imgs[-1]
 
@@ -312,7 +312,7 @@ class Canny:
         :return:
         """
 
-        # If it is th eoutput of a different function then take the last value in the tuple
+        # If it is the output of a different function then take the last value in the tuple
         if isinstance(in_imgs, tuple):
             in_imgs = in_imgs[-1]
 
@@ -375,7 +375,7 @@ class HOG:
         :return: original images, the filtered image.
         """
 
-        # If it is th eoutput of a different function then take the last value in the tuple
+        # If it is the output of a different function then take the last value in the tuple
         if isinstance(in_imgs, tuple):
             in_imgs = in_imgs[-1]
 
