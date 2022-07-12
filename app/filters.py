@@ -1,10 +1,11 @@
+import copy
 import numpy as np
 from scipy.signal.windows import gaussian
 from scipy.ndimage import convolve, convolve1d
 from skimage.feature import hog as sk_hog
 from skimage.feature import canny as sk_canny
 from app.imager import ImageLoader, DefectViewer, Show
-from app.utils import input_check
+from app.utils import input_check, ImageWrapper, line_split_string
 
 
 class CreateKernel:
@@ -72,13 +73,26 @@ class CreateKernel:
 
         return self.kernel_val
 
-    def __lshift__(self, in_imgs):
+    def __lshift__(self, in_imw):
         """
         Applies a kernel to images and returns that image with the kernel applied.
-        :param in_imgs:
+        :param in_imw:
         :return:
         """
-        return in_imgs, self.kernel_val
+
+        # If it is the output of a different function then take the last value in the tuple
+        if isinstance(in_imw, tuple):
+            in_imw = in_imw[-1]
+
+        if self.kernel_params:
+            category = f'\n kernel type {self.kernel_type} with params {self.kernel_params}'
+        else:
+            category = f'\n kernel type {self.kernel_type}'
+        category = in_imw.category + line_split_string(category)
+
+        out_imw = ImageWrapper(in_imw.images, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        return out_imw, self.kernel_val
 
     def _check_required_params(self):
         """
@@ -214,9 +228,14 @@ class Convolve:
         :return:
         """
 
-        in_imgs, kernel = kern_out
+        in_imw, kernel = kern_out
+        out_img = self.apply_filter(in_imw.images, kernel)
 
-        return self.apply_filter(in_imgs, kernel)
+        category = f' convolved along axis {self.axis}'
+        category = in_imw.category + line_split_string(category)
+        out_imw = ImageWrapper(out_img, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        return in_imw, out_imw
 
     def apply_filter(self, in_imgs, kernel):
         """
@@ -245,10 +264,10 @@ class Convolve:
                 kernel = kernel[np.newaxis, :]
 
         if dim == 1:
-            return in_imgs, convolve1d(in_imgs, kernel, mode=self.mode, axis=axis)
+            return convolve1d(in_imgs, kernel, mode=self.mode, axis=axis)
         elif dim == 2:
             # Create 2d filter and normalise
-            return in_imgs, convolve(in_imgs, kernel, mode=self.mode, cval=self.cval)
+            return convolve(in_imgs, kernel, mode=self.mode, cval=self.cval)
 
 
 class Canny:
@@ -284,14 +303,27 @@ class Canny:
         if kwargs:
             raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
 
-    def __lshift__(self, in_imgs):
+    def __lshift__(self, in_imw):
         """
         Applies a canny filter, essentially a wrapper for the scikit-image.feature.canny() method.
 
-        :param in_imgs: Images of the shape (N, W, H)
+        :param in_imw: Images of the shape (N, W, H)
         :return:
         """
-        return in_imgs, self.apply_filter(in_imgs)
+        if isinstance(in_imw, tuple):
+            in_imw = in_imw[-1]
+
+        out_img = self.apply_filter(in_imw.images)
+
+        # If it is the output of a different function then take the last value in the tuple
+        category = f'\n Canny with sigma'
+        if self.params:
+            category += f' and params: {self.params}'
+        category = in_imw.category + line_split_string(category)
+
+        out_imw = ImageWrapper(out_img, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        return in_imw, out_imw
 
     def apply_filter(self, in_imgs):
         """
@@ -342,14 +374,28 @@ class HOG:
         if kwargs:
             raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
 
-    def __lshift__(self, in_imgs):
+    def __lshift__(self, in_imw):
         """
-        Applies a filter to images and returns that image with the filter applied.
+        Applies a canny filter, essentially a wrapper for the scikit-image.feature.canny() method.
 
-        :param in_imgs: Output of the Kernel class (images, kernel)
-        :return: original images, the filtered image.
+        :param in_imw: Images of the shape (N, W, H)
+        :return:
         """
-        return in_imgs, self.apply_filter(in_imgs)
+
+        if isinstance(in_imw, tuple):
+            in_imw = in_imw[-1]
+
+        out_img = self.apply_filter(in_imw.images)
+
+        # If it is the output of a different function then take the last value in the tuple
+        category = f'\n HOG filter '
+        if self.params:
+            category += f' with params: {self.params}'
+        category = in_imw.category + line_split_string(category)
+
+        out_imw = ImageWrapper(out_img, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        return in_imw, out_imw
 
     def apply_filter(self, in_imgs):
         """
