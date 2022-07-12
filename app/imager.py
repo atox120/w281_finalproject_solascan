@@ -1,4 +1,6 @@
 import os
+import random
+
 import cv2
 import json
 import copy
@@ -9,18 +11,7 @@ import matplotlib.pyplot as plt
 from random import shuffle as shuf
 import matplotlib.patches as patches
 from collections.abc import Iterable
-
-
-def input_check(indict, key, default, out_dict, exception=False):
-    try:
-        out_dict[key] = indict[key]
-        del indict[key]
-    except KeyError:
-        if exception:
-            raise KeyError(f'{key} is a required input and was not provided')
-        else:
-            if default is not None:
-                out_dict[key] = default
+from app.utils import input_check, ImageWrapper, chunk, line_split_string
 
 
 class ImageLoader:
@@ -181,7 +172,9 @@ class DefectViewer:
 
     def __lshift__(self, sample_df):
 
-        return self.shift_image_load(sample_df, self.resize_shape)
+        return ImageWrapper(self.shift_image_load(sample_df, self.resize_shape),
+                            image_labels=sample_df['filename'].tolist(),
+                            category='original', )
 
     @staticmethod
     def shift_image_load(in_df_filename_or_list, resize_shape=(224, 224)):
@@ -442,17 +435,19 @@ class Show:
 
     """
 
-    def __init__(self, save_filename=None, do_show=True, num_images=None):
+    def __init__(self, save_filename=None, do_show=True, num_images=None, seed=None):
         """
 
         :param save_filename: Filename to save the output
         :param do_show: Display a plot or not
         :param num_images: If None then all images, otherwise the number listed
+        :param seed: Used for shuffling indices when show is used with num_images
         """
 
         self.save_filename = save_filename
         self.do_show = do_show
         self.num_images = num_images
+        self.seed = seed
 
     @staticmethod
     def _chk_shape(in_imgs):
@@ -461,31 +456,29 @@ class Show:
 
         return in_imgs
 
-    def format_input(self, in_imgs):
-        if isinstance(in_imgs, np.ndarray):
-            in_imgs = self._chk_shape(in_imgs)
-            return in_imgs
-        elif isinstance(in_imgs, Iterable):
-            in_imgs = [self._chk_shape(x) for x in in_imgs]
-            return in_imgs
-        else:
-            raise TypeError('Input must be  a 2D numpy array of shape (W, H) or (N, W, H) or a list of numpy arrays')
-
-    def __lshift__(self, in_imgs):
+    def __lshift__(self, in_imw):
         """
 
-        :param in_imgs: One numpy array or list or tuple of numpy arrays
+        :param in_imw: ImageWrapper object or Iterable of ImageWrapper objects
         :return:
         """
 
-        in_imgs = self.format_input(in_imgs)
+        if not isinstance(in_imw, Iterable):
+            in_imw = [in_imw, ]
 
-        return self.show(in_imgs)
+        in_imgs = [x.images for x in in_imw]
 
-    def show(self, in_imgs):
+        # Any one ImageWrapper object has the required image filenames
+        self.show(in_imgs, category=[x.category for x in in_imw], image_labels=in_imw[0].image_labels)
+
+        return in_imw
+
+    def show(self, in_imgs, category=None, image_labels=None):
         """
 
         :param in_imgs: List or tuple of numpy array of shape (W, H) or (N, W, H)
+        :param category: Image category(title)
+        :param image_labels: Label for each sample of image
         :return:
         """
 
@@ -502,6 +495,8 @@ class Show:
         # Which images to plot
         total_rows = in_imgs[0].shape[0]
         accepted_rows = list(range(total_rows))
+        if self.seed is not None:
+            random.seed(self.seed)
         shuf(accepted_rows)
 
         if self.num_images is not None:
@@ -520,6 +515,13 @@ class Show:
                 img_cnt = plt_rows*n_cols + col_cnt + 1
                 ax = fig.add_subplot(n_rows, n_cols, img_cnt)
                 ax.imshow(np.squeeze(in_imgs[col_cnt][row_cnt, :, :]), cmap='gray')
+
+                if col_cnt == 0:
+                    ax.set_ylabel(chunk(image_labels[row_cnt]), size='large')
+
+                # Add a column label if row is 0
+                if plt_rows == 0 and category is not None:
+                    ax.set_title(category[col_cnt])
 
             plt_rows += 1
 
@@ -579,17 +581,31 @@ class Exposure:
         if kwargs:
             raise KeyError(f'Unused keys in kwargs {kwargs.keys()}')
 
-    def __lshift__(self, in_imgs):
+    def __lshift__(self, in_imw):
         """
 
-        :param in_imgs:
+        :param in_imw:
         :return:
         """
 
-        if isinstance(in_imgs, tuple):
-            in_imgs = in_imgs[-1]
+        if isinstance(in_imw, Iterable):
+            # noinspection PyUnresolvedReferences
+            in_imw = in_imw[-1]
 
-        return in_imgs, self.get(in_imgs)
+        # These are the images we want to process
+        in_imgs = in_imw.images
+
+        # This is the processed nd array
+        out_imgs = self.get(in_imgs)
+
+        # Add the
+        category = f'\n Exposure mode {self.mode} with params {self.params}' if self.params else \
+                   f'\n Exposure mode {self.mode}'
+        category = in_imw.category + line_split_string(category)
+
+        out_imw = ImageWrapper(out_imgs, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        return in_imw, out_imw
 
     def get(self, in_imgs):
 
@@ -732,16 +748,13 @@ if __name__ == '__main__':
         sdf = imgv.load_n(1, defect_classes='FrontGridInterruption')
         dv = DefectViewer(imgv)
 
-        imgs = dv.shift_image_load(sdf)
+        imgs = DefectViewer() << (ImageLoader(defect_class='FrontGridInterruption') << 50)
+        Show(num_images=3, seed=43) << imgs
 
         # Equalize using sigmoid
         # eq = Equalize(mode='sigmoid', gain=10, cutoff=0.5, inverse=True)
         # eq = Equalize(mode='gamma', gain=1, gamma=0.2)
-        eq = Exposure(mode='histo')
-        imgso = eq.get(imgs)
-
-        plt.scatter(imgs.flatten(), imgso.flatten())
-        plt.show()
+        Show(num_images=3, seed=43) << (Exposure(mode='histo') << imgs)
 
         # eq.histogram_equalization(imgs)
         # eq.adaptive_histogram_equalization(imgs)
