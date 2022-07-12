@@ -1,66 +1,60 @@
 import cv2
+import copy
 import numpy as np
 from collections.abc import Iterable
+from app.utils import ImageWrapper
 from app.imager import ImageLoader, DefectViewer, Show
-
-
-def input_check(indict, key, default, out_dict, exception=False):
-    try:
-        out_dict[key] = indict[key]
-        del indict[key]
-    except KeyError:
-        if exception:
-            raise KeyError(f'{key} is a required input and was not provided')
-        else:
-            if default is not None:
-                out_dict[key] = default
 
 
 class FFT:
 
-    def __init__(self, dim=2, axis=(-2, -1), return_which='both'):
+    def __init__(self, dim=2, axis=(-2, -1)):
         """
 
          :param dim:
          :param axis: Which dimension(s) to perform FFT on.
                 When dim is 2 then axis should be a tuple. Default is the last two dimensions.
                 When dim is 1 then axis should be an integer dimension.
-         :param return_which:
-                If 'both' (default) then returns (orig_img, magnitude, phase).
-                If 'magnitude' then return only (orig_img, , magnitude).
-                If 'phase' then return only (orig_img, , phase)
         """
 
         self.dim = dim
         self.axis = axis
-        self.return_which = return_which
-
         if self.dim == 1:
             if isinstance(axis, Iterable):
                 raise TypeError('A single dimension FFT can only be done on one axis')
 
-    def __lshift__(self, in_imgs):
+    def __lshift__(self, in_imw):
         """
-        Applies an FFT transform to an image and returns an image of the same size
 
-        :param in_imgs:
+        :param in_imw:
         :return:
         """
 
-        # If it is th eoutput of a different function then take the last value in the tuple
-        if isinstance(in_imgs, tuple):
-            in_imgs = in_imgs[-1]
+        if isinstance(in_imw, Iterable):
+            # noinspection PyUnresolvedReferences
+            in_imw = in_imw[-1]
 
-        if len(in_imgs.shape) == 2:
-            in_imgs = in_imgs[np.newaxis, :, :]
+        # These are the images we want to process
+        in_imgs = in_imw.images
 
         # Create a window function
         win = self.create_window(in_imgs)
 
         if self.dim == 2:
-            return self.fft2(in_imgs, win)
+            out_tuples = self.fft2(in_imgs, win)
         else:
-            return self.fft(in_imgs, win)
+            out_tuples = self.fft(in_imgs, win)
+
+        # First for the magnitude
+        category = in_imw.category
+        category += f'\n FFT amplitude with Hanning window'
+        out_imw_0 = ImageWrapper(out_tuples[0], category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        category = in_imw.category
+        category += f'\n FFT phase with Hanning window'
+        out_imw_1 = ImageWrapper(out_tuples[1], category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        return in_imw, out_imw_0, out_imw_1
 
     @staticmethod
     def create_window(in_img):
@@ -86,18 +80,9 @@ class FFT:
         # 2D fourier transform
         transformed = np.fft.fftshift(np.fft.fft2(in_img * win, axes=self.axis), axes=self.axis)
 
-        if self.return_which == 'both':
-            magnitude = np.log10(np.abs(transformed))
-            phase = np.angle(transformed)
-            return in_img, magnitude, phase
-        elif self.return_which == 'magnitude':
-            magnitude = np.log10(np.abs(transformed))
-            return in_img, magnitude
-        elif self.return_which == 'phase':
-            phase = np.angle(transformed)
-            return in_img, phase
-        else:
-            raise TypeError('return_which must be one of magnitude, phase or both')
+        magnitude = np.log10(np.abs(transformed))
+        phase = np.angle(transformed)
+        return magnitude, phase
 
     # Display the fft and the image
     def fft(self, in_img, win):
@@ -110,18 +95,10 @@ class FFT:
 
         # 2D fourier transform
         transformed = np.fft.fftshift(np.fft.fft(in_img * win, axis=self.axis), axes=self.axis)
-        if self.return_which == 'both':
-            magnitude = np.log10(np.abs(transformed))
-            phase = np.angle(transformed)
-            return in_img, magnitude, phase
-        elif self.return_which == 'magnitude':
-            magnitude = np.log10(np.abs(transformed))
-            return in_img, magnitude
-        elif self.return_which == 'phase':
-            phase = np.angle(transformed)
-            return in_img, phase
-        else:
-            raise TypeError('return_which must be one of magnitude, phase or both')
+
+        magnitude = np.log10(np.abs(transformed))
+        phase = np.angle(transformed)
+        return magnitude, phase
 
 
 class IFFT:
@@ -145,7 +122,18 @@ class IFFT:
         :return:
         """
 
-        return self.ifft(fft_out)
+        fft_array = [x.images for x in fft_out]
+        out_img = self.ifft(fft_array)
+
+        # This is the category of the original image
+        category = fft_out[0].category
+        category += '\n IFFT'
+        if self.mask is not None:
+            category += f' with mask'
+
+        ifft_out = ImageWrapper(out_img, category=category, image_labels=copy.deepcopy(fft_out[0].image_labels))
+
+        return fft_out[0], ifft_out
 
     # Display the fft and the image
     def ifft(self, fft_out):
@@ -171,7 +159,7 @@ class IFFT:
         shift_inverted = np.fft.ifftshift(fft_complex, axes=self.axis)
         inv_img = np.real(np.fft.ifft2(shift_inverted, axes=self.axis))
 
-        return orig_img, inv_img
+        return inv_img
 
 
 class CreateOnesMask:
@@ -281,7 +269,7 @@ if __name__ == '__main__':
         cm.center_circle(radius=2)
         print(cm.mask)
 
-    do_shorthand = False
+    do_shorthand = True
     if do_shorthand:
         # Perform an FFT of an image
         # Load two samples of the defect class
@@ -294,7 +282,7 @@ if __name__ == '__main__':
         fft_images = Show('fft') << fft_images
 
         # Recreate the original image from the FFT and display
-        inv_images = IFFT(mask=np.ones(fft_images[0].shape[1:])) << fft_images
+        inv_images = IFFT(mask=None) << fft_images
 
         # Display the images
         inv_images = Show('inv_fft') << inv_images
