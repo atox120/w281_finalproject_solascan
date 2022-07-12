@@ -4,18 +4,7 @@ from scipy.ndimage import convolve, convolve1d
 from skimage.feature import hog as sk_hog
 from skimage.feature import canny as sk_canny
 from app.imager import ImageLoader, DefectViewer, Show
-
-
-def input_check(indict, key, default, out_dict, exception=False):
-    try:
-        out_dict[key] = indict[key]
-        del indict[key]
-    except KeyError:
-        if exception:
-            raise KeyError(f'{key} is a required input and was not provided')
-        else:
-            if default is not None:
-                out_dict[key] = default
+from app.utils import input_check
 
 
 class CreateKernel:
@@ -335,7 +324,7 @@ class HOG:
         - channel_axis = None: does not allow specification of the channel axis.
 
         :param orientation: number of orientation bins.
-        :param pixels_per_cell: tupel of the number of cells per block.
+        :param pixels_per_cell: tuple of the number of cells per block.
 
         :return:
         """
