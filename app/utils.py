@@ -1,7 +1,5 @@
-## Utility functions
-
-#Imports
 import math
+
 
 class ImageWrapper:
 
