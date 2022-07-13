@@ -356,7 +356,7 @@ class HOG:
         - channel_axis = None: does not allow specification of the channel axis.
 
         :param orientation: number of orientation bins.
-        :param pixels_per_cell: tupel of the number of cells per block.
+        :param pixels_per_cell: tuple of the number of cells per block.
 
         :return:
         """

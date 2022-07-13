@@ -2,8 +2,9 @@ import cv2
 import copy
 import numpy as np
 from collections.abc import Iterable
-from app.utils import ImageWrapper
+from sklearn.decomposition import PCA as SKPCA
 from app.imager import ImageLoader, DefectViewer, Show
+from app.utils import input_check, ImageWrapper, line_split_string
 
 
 class FFT:
@@ -248,6 +249,107 @@ class CreateOnesMask:
         y = y[index]
 
         self.mask[x, y] = val
+
+
+class PCA:
+    """
+    Performs Principal component analysis on either a single image or a collection
+    of N images. Uses the fit_transform(X) method, Returns the inverse transform to 
+    transform the data back to it's original space. 
+    
+    Wrapper for the sklearn implenetation
+    https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
+
+    """
+
+    def __init__(self, transpose=True, **kwargs):
+        """
+        :transpose: Whether to vectorise the implementation or not. 
+            if True, the image list is transformed from N x H x W (i.e. 3D)
+            to N x (HxW) which enables a single function call.  
+            if False, a the PCA is performed on each individual image in a 
+            for loop. 
+            Note when True the PCA is conducted across all images, whereas when 
+            False the PCA is conducted on a single image. 
+        
+        :param n_components: number of components to keep. 
+        :param copy: creates a new copy, default is True.
+
+        :return:
+        """
+
+        self.transpose = transpose
+        self.params = {}
+
+        input_check(kwargs, 'n_components', None, self.params, exception=True)
+        input_check(kwargs, 'copy', True, self.params, exception=False)
+        input_check(kwargs, 'whiten', False, self.params, exception=False)
+        input_check(kwargs, 'svd_solver', 'auto', self.params, exception=False)
+        input_check(kwargs, 'tol', 0, self.params, exception=False)
+        input_check(kwargs, 'iterated_power', 'auto', self.params, exception=False)
+        if self.params['svd_solver'] == 'randomized':
+            input_check(kwargs, 'n_oversamples', 10, self.params, exception=False)
+            input_check(kwargs, 'power_iteration_normalizer', 'auto', self.params, exception=False)
+            input_check(kwargs, 'random_state', None, self.params, exception=False)
+
+        if kwargs:
+            raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
+
+    def __lshift__(self, in_imw):
+        """
+
+        :param in_imw:
+        :return:
+        """
+
+        if isinstance(in_imw, Iterable):
+            # noinspection PyUnresolvedReferences
+            in_imw = in_imw[-1]
+
+        # These are the images we want to process
+        in_imgs = in_imw.images
+        out_imgs = self.apply_transform(in_imgs)
+
+        # First for the magnitude
+        category = f'PCA with params {self.params}'
+        category = in_imw.category + line_split_string(category)
+        out_imw = ImageWrapper(out_imgs, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        return in_imw, out_imw
+
+    def pca_transform(self, in_imgs):
+        """
+        Performs the dimensionality reduction, and then returns the image
+        to the original space. 
+        """
+        pca_ = SKPCA(**self.params)
+        x_new = pca_.fit_transform(in_imgs)
+        x_out = pca_.inverse_transform(x_new)
+
+        return x_out
+
+    def apply_transform(self, in_imgs):
+        """
+        If the transpose method is specified, it transforms the image and applies the
+        transform by calling the pca_transform() function. Else, we perform the 
+        pca_transform() in a loop for each image. 
+
+        """
+        if self.transpose:
+            # get dimensions and reshape from (N, H, W) to (N, H*W)
+            n, h, w = in_imgs.shape
+            new_matrix = in_imgs.reshape(n, h * w)
+            print(new_matrix.shape)
+
+            # Call function and reshape back to (N, H, W) 
+            out_matrix = self.pca_transform(new_matrix)
+            out_imgs = out_matrix.reshape(n, h, w)
+
+        else:
+            out_list = [self.pca_transform(x) for x in in_imgs]
+            out_imgs = np.stack(out_list, axis=0)
+
+        return out_imgs
 
 
 if __name__ == '__main__':
