@@ -1,5 +1,6 @@
 import math
 
+
 class ImageWrapper:
 
     def __init__(self, images, image_labels=None, category=None):

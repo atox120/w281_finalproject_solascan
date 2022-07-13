@@ -27,9 +27,9 @@ class CreateKernel:
 
         self.dim = dim
         self.missing_list = []
-        self.kernel_params = kwargs
 
         # Create a gaussian kernel
+        self.kernel_params = kwargs
         if kernel == 'gaussian':
             # Check all parameters are passed
             self.required_params = ['size', 'std']
@@ -62,8 +62,8 @@ class CreateKernel:
             self.required_params = ['custom_kernel']
             self._check_required_params()
 
+            self.kernel_params = {}
             self.kernel_type = kernel
-            self.kernel_params = kwargs
             self.kernel_val = self.kernel_params['custom_kernel']
 
         else:
