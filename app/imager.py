@@ -1,6 +1,5 @@
 import os
 import random
-
 import cv2
 import json
 import copy
@@ -197,7 +196,7 @@ class DefectViewer:
         else:
             raise TypeError('in_df_filename_or_list can only be one of DataFrame, string or list')
 
-        images = [cv2.resize(x, resize_shape) for x in images]
+        images = [cv2.resize(x, resize_shape, interpolation=cv2.INTER_CUBIC) for x in images]
         images = np.stack(images, axis=0)
 
         # Convert from 0 to 1
