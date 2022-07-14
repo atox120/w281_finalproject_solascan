@@ -1,66 +1,61 @@
 import cv2
+import copy
 import numpy as np
 from collections.abc import Iterable
+from sklearn.decomposition import PCA as SKPCA
 from app.imager import ImageLoader, DefectViewer, Show
-
-
-def input_check(indict, key, default, out_dict, exception=False):
-    try:
-        out_dict[key] = indict[key]
-        del indict[key]
-    except KeyError:
-        if exception:
-            raise KeyError(f'{key} is a required input and was not provided')
-        else:
-            if default is not None:
-                out_dict[key] = default
+from app.utils import input_check, ImageWrapper, line_split_string
 
 
 class FFT:
 
-    def __init__(self, dim=2, axis=(-2, -1), return_which='both'):
+    def __init__(self, dim=2, axis=(-2, -1)):
         """
 
          :param dim:
          :param axis: Which dimension(s) to perform FFT on.
                 When dim is 2 then axis should be a tuple. Default is the last two dimensions.
                 When dim is 1 then axis should be an integer dimension.
-         :param return_which:
-                If 'both' (default) then returns (orig_img, magnitude, phase).
-                If 'magnitude' then return only (orig_img, , magnitude).
-                If 'phase' then return only (orig_img, , phase)
         """
 
         self.dim = dim
         self.axis = axis
-        self.return_which = return_which
-
         if self.dim == 1:
             if isinstance(axis, Iterable):
                 raise TypeError('A single dimension FFT can only be done on one axis')
 
-    def __lshift__(self, in_imgs):
+    def __lshift__(self, in_imw):
         """
-        Applies an FFT transform to an image and returns an image of the same size
 
-        :param in_imgs:
+        :param in_imw:
         :return:
         """
 
-        # If it is th eoutput of a different function then take the last value in the tuple
-        if isinstance(in_imgs, tuple):
-            in_imgs = in_imgs[-1]
+        if isinstance(in_imw, Iterable):
+            # noinspection PyUnresolvedReferences
+            in_imw = in_imw[-1]
 
-        if len(in_imgs.shape) == 2:
-            in_imgs = in_imgs[np.newaxis, :, :]
+        # These are the images we want to process
+        in_imgs = in_imw.images
 
         # Create a window function
         win = self.create_window(in_imgs)
 
         if self.dim == 2:
-            return self.fft2(in_imgs, win)
+            out_tuples = self.fft2(in_imgs, win)
         else:
-            return self.fft(in_imgs, win)
+            out_tuples = self.fft(in_imgs, win)
+
+        # First for the magnitude
+        category = in_imw.category
+        category += f'\n FFT amplitude with Hanning window'
+        out_imw_0 = ImageWrapper(out_tuples[0], category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        category = in_imw.category
+        category += f'\n FFT phase with Hanning window'
+        out_imw_1 = ImageWrapper(out_tuples[1], category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        return in_imw, out_imw_0, out_imw_1
 
     @staticmethod
     def create_window(in_img):
@@ -86,18 +81,9 @@ class FFT:
         # 2D fourier transform
         transformed = np.fft.fftshift(np.fft.fft2(in_img * win, axes=self.axis), axes=self.axis)
 
-        if self.return_which == 'both':
-            magnitude = np.log10(np.abs(transformed))
-            phase = np.angle(transformed)
-            return in_img, magnitude, phase
-        elif self.return_which == 'magnitude':
-            magnitude = np.log10(np.abs(transformed))
-            return in_img, magnitude
-        elif self.return_which == 'phase':
-            phase = np.angle(transformed)
-            return in_img, phase
-        else:
-            raise TypeError('return_which must be one of magnitude, phase or both')
+        magnitude = np.log10(np.abs(transformed))
+        phase = np.angle(transformed)
+        return magnitude, phase
 
     # Display the fft and the image
     def fft(self, in_img, win):
@@ -110,18 +96,10 @@ class FFT:
 
         # 2D fourier transform
         transformed = np.fft.fftshift(np.fft.fft(in_img * win, axis=self.axis), axes=self.axis)
-        if self.return_which == 'both':
-            magnitude = np.log10(np.abs(transformed))
-            phase = np.angle(transformed)
-            return in_img, magnitude, phase
-        elif self.return_which == 'magnitude':
-            magnitude = np.log10(np.abs(transformed))
-            return in_img, magnitude
-        elif self.return_which == 'phase':
-            phase = np.angle(transformed)
-            return in_img, phase
-        else:
-            raise TypeError('return_which must be one of magnitude, phase or both')
+
+        magnitude = np.log10(np.abs(transformed))
+        phase = np.angle(transformed)
+        return magnitude, phase
 
 
 class IFFT:
@@ -145,7 +123,18 @@ class IFFT:
         :return:
         """
 
-        return self.ifft(fft_out)
+        fft_array = [x.images for x in fft_out]
+        out_img = self.ifft(fft_array)
+
+        # This is the category of the original image
+        category = fft_out[0].category
+        category += '\n IFFT'
+        if self.mask is not None:
+            category += f' with mask'
+
+        ifft_out = ImageWrapper(out_img, category=category, image_labels=copy.deepcopy(fft_out[0].image_labels))
+
+        return fft_out[0], ifft_out
 
     # Display the fft and the image
     def ifft(self, fft_out):
@@ -171,7 +160,7 @@ class IFFT:
         shift_inverted = np.fft.ifftshift(fft_complex, axes=self.axis)
         inv_img = np.real(np.fft.ifft2(shift_inverted, axes=self.axis))
 
-        return orig_img, inv_img
+        return inv_img
 
 
 class CreateOnesMask:
@@ -262,6 +251,107 @@ class CreateOnesMask:
         self.mask[x, y] = val
 
 
+class PCA:
+    """
+    Performs Principal component analysis on either a single image or a collection
+    of N images. Uses the fit_transform(X) method, Returns the inverse transform to 
+    transform the data back to it's original space. 
+    
+    Wrapper for the sklearn implenetation
+    https://scikit-learn.org/stable/modules/generated/sklearn.decomposition.PCA.html
+
+    """
+
+    def __init__(self, transpose=True, **kwargs):
+        """
+        :transpose: Whether to vectorise the implementation or not. 
+            if True, the image list is transformed from N x H x W (i.e. 3D)
+            to N x (HxW) which enables a single function call.  
+            if False, a the PCA is performed on each individual image in a 
+            for loop. 
+            Note when True the PCA is conducted across all images, whereas when 
+            False the PCA is conducted on a single image. 
+        
+        :param n_components: number of components to keep. 
+        :param copy: creates a new copy, default is True.
+
+        :return:
+        """
+
+        self.transpose = transpose
+        self.params = {}
+
+        input_check(kwargs, 'n_components', None, self.params, exception=True)
+        input_check(kwargs, 'copy', True, self.params, exception=False)
+        input_check(kwargs, 'whiten', False, self.params, exception=False)
+        input_check(kwargs, 'svd_solver', 'auto', self.params, exception=False)
+        input_check(kwargs, 'tol', 0, self.params, exception=False)
+        input_check(kwargs, 'iterated_power', 'auto', self.params, exception=False)
+        if self.params['svd_solver'] == 'randomized':
+            input_check(kwargs, 'n_oversamples', 10, self.params, exception=False)
+            input_check(kwargs, 'power_iteration_normalizer', 'auto', self.params, exception=False)
+            input_check(kwargs, 'random_state', None, self.params, exception=False)
+
+        if kwargs:
+            raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
+
+    def __lshift__(self, in_imw):
+        """
+
+        :param in_imw:
+        :return:
+        """
+
+        if isinstance(in_imw, Iterable):
+            # noinspection PyUnresolvedReferences
+            in_imw = in_imw[-1]
+
+        # These are the images we want to process
+        in_imgs = in_imw.images
+        out_imgs = self.apply_transform(in_imgs)
+
+        # First for the magnitude
+        category = f'PCA with params {self.params}'
+        category = in_imw.category + line_split_string(category)
+        out_imw = ImageWrapper(out_imgs, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        return in_imw, out_imw
+
+    def pca_transform(self, in_imgs):
+        """
+        Performs the dimensionality reduction, and then returns the image
+        to the original space. 
+        """
+        pca_ = SKPCA(**self.params)
+        x_new = pca_.fit_transform(in_imgs)
+        x_out = pca_.inverse_transform(x_new)
+
+        return x_out
+
+    def apply_transform(self, in_imgs):
+        """
+        If the transpose method is specified, it transforms the image and applies the
+        transform by calling the pca_transform() function. Else, we perform the 
+        pca_transform() in a loop for each image. 
+
+        """
+        if self.transpose:
+            # get dimensions and reshape from (N, H, W) to (N, H*W)
+            n, h, w = in_imgs.shape
+            new_matrix = in_imgs.reshape(n, h * w)
+            print(new_matrix.shape)
+
+            # Call function and reshape back to (N, H, W) 
+            out_matrix = self.pca_transform(new_matrix)
+            out_imgs = out_matrix.reshape(n, h, w)
+
+        else:
+            out_list = [self.pca_transform(x) for x in in_imgs]
+            out_imgs = np.stack(out_list, axis=0)
+
+        return out_imgs
+
+
 if __name__ == '__main__':
 
     do_create_mask = False
@@ -281,7 +371,7 @@ if __name__ == '__main__':
         cm.center_circle(radius=2)
         print(cm.mask)
 
-    do_shorthand = False
+    do_shorthand = True
     if do_shorthand:
         # Perform an FFT of an image
         # Load two samples of the defect class
@@ -294,7 +384,7 @@ if __name__ == '__main__':
         fft_images = Show('fft') << fft_images
 
         # Recreate the original image from the FFT and display
-        inv_images = IFFT(mask=np.ones(fft_images[0].shape[1:])) << fft_images
+        inv_images = IFFT(mask=None) << fft_images
 
         # Display the images
         inv_images = Show('inv_fft') << inv_images
