@@ -1,11 +1,13 @@
 import copy
+import time
+
 import numpy as np
 from scipy.signal.windows import gaussian
 from scipy.ndimage import convolve, convolve1d
 from skimage.feature import hog as sk_hog
 from skimage.feature import canny as sk_canny
 from app.imager import ImageLoader, DefectViewer, Show
-from app.utils import input_check, ImageWrapper, line_split_string
+from app.utils import input_check, ImageWrapper, line_split_string, parallelize
 
 
 class CreateKernel:
@@ -364,12 +366,15 @@ class HOG:
         # block_norm = 'L2-Hys', transform_sqrt = False, feature_vector = True
 
         self.params = {'visualize': True}
+        self.num_jobs = {}
         input_check(kwargs, 'orientations', 9, self.params, exception=False)
         input_check(kwargs, 'pixels_per_cell', (8, 8), self.params, exception=False)
         input_check(kwargs, 'cells_per_block', (3, 3), self.params, exception=False)
         input_check(kwargs, 'block_norm', 'L2-Hys', self.params, exception=False)
         input_check(kwargs, 'transform_sqrt', False, self.params, exception=False)
         input_check(kwargs, 'feature_vector', True, self.params, exception=False)
+        input_check(kwargs, 'num_jobs', 1, self.num_jobs, exception=False)
+        self.num_jobs = self.num_jobs['num_jobs']
 
         if kwargs:
             raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
@@ -385,7 +390,7 @@ class HOG:
         if isinstance(in_imw, tuple):
             in_imw = in_imw[-1]
 
-        out_img = self.apply_filter(in_imw.images)
+        out_img = self.apply(in_imw.images)
 
         # If it is the output of a different function then take the last value in the tuple
         category = f'\n HOG filter '
@@ -396,6 +401,30 @@ class HOG:
         out_imw = ImageWrapper(out_img, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
 
         return in_imw, out_imw
+
+    def apply(self, in_imgs):
+        """
+
+        :return:
+        """
+        if self.num_jobs == 1:
+            return self.apply_filter(in_imgs)
+        else:
+            # Divide in_imgs into chunks
+            # At least 2 images per job
+            num_jobs = self.num_jobs
+            chunk_size = int(in_imgs.shape[0]/num_jobs)
+            chunk_size = 1 if chunk_size < 1 else chunk_size
+
+            # Split the image into so many chunks
+            args = [in_imgs[i:i + chunk_size, :] for i in range(0, in_imgs.shape[0], chunk_size)]
+            funcs = [self.apply_filter for _ in range(len(args))]
+
+            # Collect the results from parallelize
+            results = parallelize(funcs, args)
+
+            # Concatenate and return results
+            return np.concatenate(results, axis=0)
 
     def apply_filter(self, in_imgs):
         """
@@ -419,10 +448,13 @@ if __name__ == '__main__':
 
     do_kernel = True
     if do_kernel:
-        n_samples = 10
+        n_samples = 1001
         images = DefectViewer() << (ImageLoader(defect_class='FrontGridInterruption') << n_samples)
 
         # ck = CreateKernel(bim=2, kernel='gaussian', size=3, std=8)
-        c_imgs = HOG() << images
+        start = time.perf_counter()
+        c_imgs = HOG(pixels_per_cell=(3, 3), num_jobs=20) << images
 
-        _ = Show('hog') << c_imgs
+        print(time.perf_counter() - start)
+
+        _ = Show('hog', num_images=10) << c_imgs
