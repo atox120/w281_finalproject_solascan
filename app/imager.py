@@ -515,7 +515,7 @@ class Show:
                 ax = fig.add_subplot(n_rows, n_cols, img_cnt)
                 ax.imshow(np.squeeze(in_imgs[col_cnt][row_cnt, :, :]), cmap='gray')
 
-                if col_cnt == 0:
+                if col_cnt == 0 and image_labels is not None:
                     ax.set_ylabel(chunk(image_labels[row_cnt]), size='large')
 
                 # Add a column label if row is 0
@@ -595,7 +595,7 @@ class Exposure:
         in_imgs = in_imw.images
 
         # This is the processed nd array
-        out_imgs = self.get(in_imgs)
+        out_imgs = self.apply(in_imgs)
 
         # Add the
         category = f'\n Exposure mode {self.mode} with params {self.params}' if self.params else \
@@ -606,7 +606,7 @@ class Exposure:
 
         return in_imw, out_imw
 
-    def get(self, in_imgs):
+    def apply(self, in_imgs):
 
         if self.mode == 'histo':
             return self.histogram_equalization(in_imgs)

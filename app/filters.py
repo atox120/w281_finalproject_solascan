@@ -71,7 +71,7 @@ class CreateKernel:
         else:
             raise KeyError('Kernel type not recognised. Allowable values: gaussian, custom, prewitt, sobel')
 
-    def get(self):
+    def apply(self):
 
         return self.kernel_val
 
@@ -231,7 +231,7 @@ class Convolve:
         """
 
         in_imw, kernel = kern_out
-        out_img = self.apply_filter(in_imw.images, kernel)
+        out_img = self.apply(in_imw.images, kernel)
 
         category = f' convolved along axis {self.axis}'
         category = in_imw.category + line_split_string(category)
@@ -239,7 +239,7 @@ class Convolve:
 
         return in_imw, out_imw
 
-    def apply_filter(self, in_imgs, kernel):
+    def apply(self, in_imgs, kernel):
         """
         Wrapper for the scipy.signal.convolve2d method:
         https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.convolve2d.html#scipy.signal.convolve2d
@@ -315,7 +315,7 @@ class Canny:
         if isinstance(in_imw, tuple):
             in_imw = in_imw[-1]
 
-        out_img = self.apply_filter(in_imw.images)
+        out_img = self.apply(in_imw.images)
 
         # If it is the output of a different function then take the last value in the tuple
         category = f'\n Canny with sigma'
@@ -327,7 +327,7 @@ class Canny:
 
         return in_imw, out_imw
 
-    def apply_filter(self, in_imgs):
+    def apply(self, in_imgs):
         """
         Applies a canny filter, essentially a wrapper for the scikit-image.feature.canny() method.
 
