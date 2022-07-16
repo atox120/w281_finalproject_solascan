@@ -307,7 +307,7 @@ class Canny:
 
     def __lshift__(self, in_imw):
         """
-        Applies a canny filter, essentially a wrapper for the scikit-image.feature.canny() method.
+        Applies a canny filter to the input images
 
         :param in_imw: Images of the shape (N, W, H)
         :return:
@@ -381,7 +381,7 @@ class HOG:
 
     def __lshift__(self, in_imw):
         """
-        Applies a canny filter, essentially a wrapper for the scikit-image.feature.canny() method.
+        Applies a HOG filter to the input images.
 
         :param in_imw: Images of the shape (N, W, H)
         :return:
@@ -428,10 +428,7 @@ class HOG:
 
     def apply_filter(self, in_imgs):
         """
-        Applies a canny filter, essentially a wrapper for the scikit-image.feature.hog() method.
-
-        To do: not vectorised. Perhaps can be implemented with joblib?
-        https://scikit-image.org/docs/stable/user_guide/tutorial_parallelization.html
+        Applies a HOG filter, essentially a wrapper for the scikit-image.feature.hog() method.
 
         """
         # For loop to apply the HOG filter to each img in the image array
