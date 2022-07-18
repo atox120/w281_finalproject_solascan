@@ -1,11 +1,13 @@
 import copy
+import time
+
 import numpy as np
 from scipy.signal.windows import gaussian
 from scipy.ndimage import convolve, convolve1d
 from skimage.feature import hog as sk_hog
 from skimage.feature import canny as sk_canny
 from app.imager import ImageLoader, DefectViewer, Show
-from app.utils import input_check, ImageWrapper, line_split_string
+from app.utils import input_check, ImageWrapper, line_split_string, parallelize
 
 
 class CreateKernel:
@@ -27,9 +29,9 @@ class CreateKernel:
 
         self.dim = dim
         self.missing_list = []
-        self.kernel_params = kwargs
 
         # Create a gaussian kernel
+        self.kernel_params = kwargs
         if kernel == 'gaussian':
             # Check all parameters are passed
             self.required_params = ['size', 'std']
@@ -62,14 +64,14 @@ class CreateKernel:
             self.required_params = ['custom_kernel']
             self._check_required_params()
 
+            self.kernel_params = {}
             self.kernel_type = kernel
-            self.kernel_params = kwargs
             self.kernel_val = self.kernel_params['custom_kernel']
 
         else:
             raise KeyError('Kernel type not recognised. Allowable values: gaussian, custom, prewitt, sobel')
 
-    def get(self):
+    def apply(self):
 
         return self.kernel_val
 
@@ -229,7 +231,7 @@ class Convolve:
         """
 
         in_imw, kernel = kern_out
-        out_img = self.apply_filter(in_imw.images, kernel)
+        out_img = self.apply(in_imw.images, kernel)
 
         category = f' convolved along axis {self.axis}'
         category = in_imw.category + line_split_string(category)
@@ -237,7 +239,7 @@ class Convolve:
 
         return in_imw, out_imw
 
-    def apply_filter(self, in_imgs, kernel):
+    def apply(self, in_imgs, kernel):
         """
         Wrapper for the scipy.signal.convolve2d method:
         https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.convolve2d.html#scipy.signal.convolve2d
@@ -305,7 +307,7 @@ class Canny:
 
     def __lshift__(self, in_imw):
         """
-        Applies a canny filter, essentially a wrapper for the scikit-image.feature.canny() method.
+        Applies a canny filter to the input images
 
         :param in_imw: Images of the shape (N, W, H)
         :return:
@@ -313,7 +315,7 @@ class Canny:
         if isinstance(in_imw, tuple):
             in_imw = in_imw[-1]
 
-        out_img = self.apply_filter(in_imw.images)
+        out_img = self.apply(in_imw.images)
 
         # If it is the output of a different function then take the last value in the tuple
         category = f'\n Canny with sigma'
@@ -325,7 +327,7 @@ class Canny:
 
         return in_imw, out_imw
 
-    def apply_filter(self, in_imgs):
+    def apply(self, in_imgs):
         """
         Applies a canny filter, essentially a wrapper for the scikit-image.feature.canny() method.
 
@@ -364,19 +366,22 @@ class HOG:
         # block_norm = 'L2-Hys', transform_sqrt = False, feature_vector = True
 
         self.params = {'visualize': True}
+        self.num_jobs = {}
         input_check(kwargs, 'orientations', 9, self.params, exception=False)
         input_check(kwargs, 'pixels_per_cell', (8, 8), self.params, exception=False)
         input_check(kwargs, 'cells_per_block', (3, 3), self.params, exception=False)
         input_check(kwargs, 'block_norm', 'L2-Hys', self.params, exception=False)
         input_check(kwargs, 'transform_sqrt', False, self.params, exception=False)
         input_check(kwargs, 'feature_vector', True, self.params, exception=False)
+        input_check(kwargs, 'num_jobs', 1, self.num_jobs, exception=False)
+        self.num_jobs = self.num_jobs['num_jobs']
 
         if kwargs:
             raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
 
     def __lshift__(self, in_imw):
         """
-        Applies a canny filter, essentially a wrapper for the scikit-image.feature.canny() method.
+        Applies a HOG filter to the input images.
 
         :param in_imw: Images of the shape (N, W, H)
         :return:
@@ -385,7 +390,7 @@ class HOG:
         if isinstance(in_imw, tuple):
             in_imw = in_imw[-1]
 
-        out_img = self.apply_filter(in_imw.images)
+        out_img = self.apply(in_imw.images)
 
         # If it is the output of a different function then take the last value in the tuple
         category = f'\n HOG filter '
@@ -397,12 +402,33 @@ class HOG:
 
         return in_imw, out_imw
 
+    def apply(self, in_imgs):
+        """
+
+        :return:
+        """
+        if self.num_jobs == 1:
+            return self.apply_filter(in_imgs)
+        else:
+            # Divide in_imgs into chunks
+            # At least 2 images per job
+            num_jobs = self.num_jobs
+            chunk_size = int(in_imgs.shape[0]/num_jobs)
+            chunk_size = 1 if chunk_size < 1 else chunk_size
+
+            # Split the image into so many chunks
+            args = [in_imgs[i:i + chunk_size, :] for i in range(0, in_imgs.shape[0], chunk_size)]
+            funcs = [self.apply_filter for _ in range(len(args))]
+
+            # Collect the results from parallelize
+            results = parallelize(funcs, args)
+
+            # Concatenate and return results
+            return np.concatenate(results, axis=0)
+
     def apply_filter(self, in_imgs):
         """
-        Applies a canny filter, essentially a wrapper for the scikit-image.feature.hog() method.
-
-        To do: not vectorised. Perhaps can be implemented with joblib?
-        https://scikit-image.org/docs/stable/user_guide/tutorial_parallelization.html
+        Applies a HOG filter, essentially a wrapper for the scikit-image.feature.hog() method.
 
         """
         # For loop to apply the HOG filter to each img in the image array
@@ -419,10 +445,13 @@ if __name__ == '__main__':
 
     do_kernel = True
     if do_kernel:
-        n_samples = 10
+        n_samples = 1001
         images = DefectViewer() << (ImageLoader(defect_class='FrontGridInterruption') << n_samples)
 
         # ck = CreateKernel(bim=2, kernel='gaussian', size=3, std=8)
-        c_imgs = HOG() << images
+        start = time.perf_counter()
+        c_imgs = HOG(pixels_per_cell=(3, 3), num_jobs=20) << images
 
-        _ = Show('hog') << c_imgs
+        print(time.perf_counter() - start)
+
+        _ = Show('hog', num_images=10) << c_imgs

@@ -37,14 +37,7 @@ class FFT:
 
         # These are the images we want to process
         in_imgs = in_imw.images
-
-        # Create a window function
-        win = self.create_window(in_imgs)
-
-        if self.dim == 2:
-            out_tuples = self.fft2(in_imgs, win)
-        else:
-            out_tuples = self.fft(in_imgs, win)
+        out_tuples = self.apply(in_imgs)
 
         # First for the magnitude
         category = in_imw.category
@@ -56,6 +49,17 @@ class FFT:
         out_imw_1 = ImageWrapper(out_tuples[1], category=category, image_labels=copy.deepcopy(in_imw.image_labels))
 
         return in_imw, out_imw_0, out_imw_1
+
+    def apply(self, in_imgs):
+        # Create a window function
+        win = self.create_window(in_imgs)
+
+        if self.dim == 2:
+            out_tuples = self.fft2(in_imgs, win)
+        else:
+            out_tuples = self.fft(in_imgs, win)
+
+        return out_tuples
 
     @staticmethod
     def create_window(in_img):
@@ -124,7 +128,7 @@ class IFFT:
         """
 
         fft_array = [x.images for x in fft_out]
-        out_img = self.ifft(fft_array)
+        out_img = self.apply(fft_array)
 
         # This is the category of the original image
         category = fft_out[0].category
@@ -137,7 +141,7 @@ class IFFT:
         return fft_out[0], ifft_out
 
     # Display the fft and the image
-    def ifft(self, fft_out):
+    def apply(self, fft_out):
         """
 
         :param fft_out: original_image, fft magnitude, fft phase (output of fft2 method of FFT class)
@@ -308,7 +312,7 @@ class PCA:
 
         # These are the images we want to process
         in_imgs = in_imw.images
-        out_imgs = self.apply_transform(in_imgs)
+        out_imgs = self.apply(in_imgs)
 
         # First for the magnitude
         category = f'PCA with params {self.params}'
@@ -328,7 +332,7 @@ class PCA:
 
         return x_out
 
-    def apply_transform(self, in_imgs):
+    def apply(self, in_imgs):
         """
         If the transpose method is specified, it transforms the image and applies the
         transform by calling the pca_transform() function. Else, we perform the 
@@ -338,12 +342,11 @@ class PCA:
         if self.transpose:
             # get dimensions and reshape from (N, H, W) to (N, H*W)
             n, h, w = in_imgs.shape
-            new_matrix = in_imgs.reshape(n, h * w)
-            print(new_matrix.shape)
+            new_matrix = in_imgs.reshape(n, h * w).T
 
             # Call function and reshape back to (N, H, W) 
             out_matrix = self.pca_transform(new_matrix)
-            out_imgs = out_matrix.reshape(n, h, w)
+            out_imgs = out_matrix.T.reshape(n, h, w)
 
         else:
             out_list = [self.pca_transform(x) for x in in_imgs]
