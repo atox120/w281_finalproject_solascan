@@ -8,6 +8,14 @@ import numpy as np
 
 class ImageWrapper:
 
+    """
+    Class for piping the images and their information through the various transforms. 
+    Has attributes:
+    .images: the images themseles, stored as numpy arrays.
+    .category: the defect class associated with the image, as string. 
+    .image_labels: the labels associated with the each image, stored as a list. 
+    """
+    
     def __init__(self, images, image_labels=None, category=None):
 
         self.images = images
