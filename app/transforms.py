@@ -342,12 +342,11 @@ class PCA:
         if self.transpose:
             # get dimensions and reshape from (N, H, W) to (N, H*W)
             n, h, w = in_imgs.shape
-            new_matrix = in_imgs.reshape(n, h * w)
-            print(new_matrix.shape)
+            new_matrix = in_imgs.reshape(n, h * w).T
 
             # Call function and reshape back to (N, H, W) 
             out_matrix = self.pca_transform(new_matrix)
-            out_imgs = out_matrix.reshape(n, h, w)
+            out_imgs = out_matrix.T.reshape(n, h, w)
 
         else:
             out_list = [self.pca_transform(x) for x in in_imgs]

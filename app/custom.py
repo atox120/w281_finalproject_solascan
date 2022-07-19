@@ -40,7 +40,7 @@ class Orient:
 
         # Create a ones mask
         cm = CreateOnesMask(in_imgs)
-        cm.center_box(width=224 - 2 * boundary, height=224 - 2 * boundary)
+        cm.center_box(width=in_imgs.shape[2] - 2 * boundary, height=in_imgs.shape[1] - 2 * boundary)
 
         # Calculate the mean of the image
         mean_val = np.mean(in_imgs, axis=(-2, -1), keepdims=True)
@@ -151,7 +151,7 @@ class RemoveBusBars:
 
         # Create a ones mask
         cm = CreateOnesMask(in_imgs)
-        cm.center_box(width=in_imgs.shape[-1] - 2*boundary, height=in_imgs.shape[-1] - 2*boundary)
+        cm.center_box(width=in_imgs.shape[2] - 2*boundary, height=in_imgs.shape[1] - 2*boundary)
 
         # Calculate the mean of the image
         mean_val = np.mean(in_imgs, axis=(-2, -1), keepdims=True)
