@@ -2,7 +2,10 @@ import cv2
 import copy
 import numpy as np
 from collections.abc import Iterable
+
 from sklearn.decomposition import PCA as SKPCA
+from sklearn.preprocessing import StandardScaler
+
 from app.imager import ImageLoader, DefectViewer, Show
 from app.utils import input_check, ImageWrapper, line_split_string
 
