@@ -690,8 +690,17 @@ class Exposure:
         # Gain parameter controls the steepness of the sigmoid
         gain = self.params['gain']
         max_vals = in_imgs.max(axis=(-2, -1))
-        print(max_vals.shape)
-        out_imgs = np.stack([1/(1 + np.exp(-sign * gain * (img - (maxv * cutoff)))) for img, maxv in zip(in_imgs, max_vals)])
+        min_vals = in_imgs.min(axis=(-2, -1))
+        out_imgs = []
+        for img, maxv, minv in zip(in_imgs, max_vals, min_vals):
+            # Data range
+            val_range = maxv - minv
+            # Fraction at which to make the cutoff
+            cut_val = minv + (val_range * cutoff)
+            # This is the sigmoid adjusted image
+            adjusted = 1/(1 + np.exp(-sign * gain * (img - cut_val)))
+            out_imgs.append(adjusted)
+        out_imgs = np.stack(out_imgs)
 
         return out_imgs
 
@@ -789,7 +798,7 @@ if __name__ == '__main__':
         # Equalize using sigmoid
         # eq = Equalize(mode='sigmoid', gain=10, cutoff=0.5, inverse=True)
         # eq = Equalize(mode='gamma', gain=1, gamma=0.2)
-        Show(num_images=3, seed=43) << (Exposure(mode='histo') << imgs)
+        Show(num_images=3, seed=43) << (Exposure(mode='dynamic_sigmoid') << imgs)
 
         # eq.histogram_equalization(imgs)
         # eq.adaptive_histogram_equalization(imgs)
