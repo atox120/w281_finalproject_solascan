@@ -2,7 +2,10 @@ import cv2
 import copy
 import numpy as np
 from collections.abc import Iterable
+
 from sklearn.decomposition import PCA as SKPCA
+from sklearn.preprocessing import StandardScaler
+
 from app.imager import ImageLoader, DefectViewer, Show
 from app.utils import input_check, ImageWrapper, line_split_string
 
@@ -339,17 +342,36 @@ class PCA:
         pca_transform() in a loop for each image. 
 
         """
-        if self.transpose:
-            # get dimensions and reshape from (N, H, W) to (N, H*W)
-            n, h, w = in_imgs.shape
-            new_matrix = in_imgs.reshape(n, h * w).T
-
+        #Instantiate scaler instance for zero mean transform
+        scaler = StandardScaler()
+        
+        if self.transpose == True:
+            # Implenetation for 1 PCA call
+            #get dimensions and reshape from (N, H, W) to (N, H*W)
+            N, H, W = in_imgs.shape
+            new_matrix = in_imgs.reshape(N, H * W).T
+            
+            # Zero mean the data
+            scaler.fit(new_matrix)
+            zero_meaned_matrix = scaler.transform(new_matrix)
+            
             # Call function and reshape back to (N, H, W) 
-            out_matrix = self.pca_transform(new_matrix)
-            out_imgs = out_matrix.T.reshape(n, h, w)
-
-        else:
-            out_list = [self.pca_transform(x) for x in in_imgs]
+            out_matrix = self.pca_transform(zero_meaned_matrix)
+            
+            #Apply inverse transform, transpose and reshape 
+            out_imgs = scaler.inverse_transform(out_matrix).T.reshape(N, H, W)
+            
+        elif self.transpose == False:
+            #Implementation for 1 PCA call per image
+            out_list = []
+            for x in in_imgs:
+                
+                #Scale and transform the data, then apply PCA
+                out_matrix = self.pca_transform(scaler.fit_transform(x))
+                
+                #Appy inverse transform and append to list
+                out_list.append(scaler.inverse_transform(out_matrix))
+            
             out_imgs = np.stack(out_list, axis=0)
 
         return out_imgs
