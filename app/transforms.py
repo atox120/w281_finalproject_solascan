@@ -346,12 +346,18 @@ class PCA:
         N = self.params['n_components']
         if len(original_dims) == 3:
             _, H, W = original_dims
+            # save eigenfaces  
+            eigenfaces = pca_.components_.reshape((N, H, W))
+        
         elif len(original_dims) == 2:
             H, W = original_dims
+            # save eigenfaces  
+            eigenfaces = pca_.components_.reshape((N, W))
+        
         else:
             raise Exception(f"Expected 2 or 3 dimensions but got: {original_dims}")
+        
         # save eigenfaces  
-        eigenfaces = pca_.components_.reshape((N, H, W))
         self.eigenfaces.append(eigenfaces)
 
         return x_out
@@ -388,10 +394,10 @@ class PCA:
             for x in in_imgs:
                 
                 #Scale and transform the data, then apply PCA
-                out_matrix = self.pca_transform(scaler.fit_transform(x))
+                out_matrix = self.pca_transform(scaler.fit_transform(x), x.shape)
                 
                 #Appy inverse transform and append to list
-                out_list.append(scaler.inverse_transform(out_matrix), out_matrix.shape)
+                out_list.append(scaler.inverse_transform(out_matrix))
             
             out_imgs = np.stack(out_list, axis=0)
 
