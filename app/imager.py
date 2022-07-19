@@ -45,9 +45,20 @@ class ImageLoader:
         self.train_file_loc = os.path.join(this_file_location, "../data/images/train")
         self.test_file_loc = os.path.join(this_file_location, "../data/images/test")
 
+        # These are the hand selected good files
+        all_bad = pd.DataFrame()
+        for filename in ['Alex_.csv', 'Andi_.csv', 'Aswin_.csv', 'Dan_.csv']:
+            all_bad = pd.concat((all_bad, pd.read_csv(f"../data/{filename}")))
+            all_bad = all_bad[np.logical_not(all_bad['clean'])]
+
         # Load the multiple DataFrames
         self.annotations_df = pd.read_csv(self.processed_annotation_path)
         self.train_files_df = pd.read_csv(self.train_files)
+        self.test_files_df = pd.read_csv(self.test_files)
+
+        # Remove all bad data files from annotations
+        self.annotations_df = \
+            self.annotations_df[np.logical_not(self.annotations_df['filename'].isin(all_bad['filename']))]
 
         # Keep only one copy of the file and folder
         self.cv_files_df = pd.DataFrame()
@@ -55,6 +66,7 @@ class ImageLoader:
 
         # Keep only rows with train data
         self.main_df = self.annotations_df.merge(self.train_files_df, on='filename', how='inner')
+        self.test_df = self.annotations_df.merge(self.test_files_df, on='filename', how='inner')
 
         self.main_df['sno'] = list(range(0, self.main_df.shape[0]))
 
@@ -545,7 +557,7 @@ class Exposure:
         :param kwargs:
         """
 
-        accepted_modes = ['stretch', 'histo', 'adaptive', 'sigmoid', 'gamma', 'invert', 'mean_norm']
+        accepted_modes = ['stretch', 'histo', 'adaptive', 'sigmoid', 'gamma', 'invert', 'mean_norm', 'dynamic_sigmoid']
         if mode not in accepted_modes:
             raise KeyError(f'Unsupported mode, it should be one of {accepted_modes}')
         self.mode = mode
@@ -561,7 +573,7 @@ class Exposure:
 
             # Check if clip input is provided
             input_check(kwargs, 'nbins', None, self.params, exception=False)
-        elif mode == 'sigmoid':
+        elif mode == 'sigmoid' or 'dynamic_sigmoid':
             # Check if kernel_size input is provided
             input_check(kwargs, 'cutoff', 0.5, self.params, exception=False)
 
@@ -614,6 +626,8 @@ class Exposure:
             return self.contrast_stretching(in_imgs)
         elif self.mode == 'sigmoid':
             return self.adjust_sigmoid(in_imgs)
+        elif self.mode == 'dynamic_sigmoid':
+            return self.adjust_sigmoid_dynamic(in_imgs)
         elif self.mode == 'gamma':
             return self.adjust_gamma(in_imgs)
         elif self.mode == 'adaptive':
@@ -658,6 +672,28 @@ class Exposure:
         gain = self.params['gain']
 
         return 1/(1 + np.exp(-sign * gain * (in_imgs - cutoff)))
+    
+    def adjust_sigmoid_dynamic(self, in_imgs):
+        """
+        Performs a sigmoid correction on the input image
+
+        :param in_imgs: Input images of shape (N, W, H)
+        :return:
+        """
+
+        # Sign for the sigmoid
+        sign = -1 if self.params['inverse'] else 1
+
+        # Cutoff point for the sigmoid
+        cutoff = self.params['cutoff']
+
+        # Gain parameter controls the steepness of the sigmoid
+        gain = self.params['gain']
+        max_vals = in_imgs.max(axis=(-2, -1))
+        print(max_vals.shape)
+        out_imgs = np.stack([1/(1 + np.exp(-sign * gain * (img - (maxv * cutoff)))) for img, maxv in zip(in_imgs, max_vals)])
+
+        return out_imgs
 
     def adjust_gamma(self, in_imgs):
         """

@@ -1,9 +1,9 @@
 import copy
 import numpy as np
-from app.filters import HOG
-from app.utils import ImageWrapper
+from app.filters import HOG, Convolve
 from app.imager import Show, Exposure
 from app.transforms import CreateOnesMask
+from app.utils import input_check, ImageWrapper
 
 
 class Orient:
@@ -220,6 +220,150 @@ class RemoveBusBars:
 
         if do_debug:
             Show(num_images=10, seed=1234).show((final_hog, in_imgs, out_imgs))
-            # Show(num_images=10, seed=1234).show((in_hogs, sobel_hogs, sigmoid_strech_hogs, shaken_hog))
+
+        return out_imgs
+
+
+class HighlightFrontGrid:
+
+    def __init__(self, **kwargs):
+        """
+        :Keyword arguments:
+            finger_type: 'simple' or 'complex'
+            finger_width: Desired width of the finger
+            finger_height: height of the finger
+            side_padding: Width of outer region of finger
+            top_padding: Amount of padding on the top of the finger
+            flipped: Finger pointing up or down(default)
+
+        """
+
+        self.finger_type = kwargs['finger_type']
+        del [kwargs['finger_type']]
+        self.params = {}
+
+        input_check(kwargs, 'finger_width', 2, self.params, exception=False)
+        input_check(kwargs, 'finger_height', 6, self.params, exception=False)
+        input_check(kwargs, 'side_padding', 2, self.params, exception=False)
+        input_check(kwargs, 'top_padding', 3, self.params, exception=False)
+        input_check(kwargs, 'flipped', False, self.params, exception=False)
+
+        if kwargs:
+            raise KeyError(f'Unused keys in kwargs {kwargs.keys()}')
+
+    @staticmethod
+    def simple_finger_kernel(finger_width=2, finger_height=6, side_padding=2, top_padding=3, flipped=False):
+        """
+        Kernel of a shape that highlights a finger
+                 o o f f o o
+                 o o f f o o
+                 o o f f o o
+                 o o f f o o
+                 o o f f o o
+                 o o f f o o
+                 o o o o o o
+                 o o o o o o
+
+        value of o = 1/(count of o)
+        value of f = -1/(count of f)
+        """
+
+        if (finger_height + top_padding) % 2 == 0:
+            top_padding += 1
+
+        # Width and height of the finger
+        width = finger_width + 2 * side_padding
+        height = finger_height + top_padding
+
+        #
+        total_size = width * height
+        finger_size = finger_width * finger_height
+
+        # Give puter region and finger weights
+        outer_weight = 1 / (total_size - finger_size)
+        finger_weight = 1 / finger_size
+
+        # Create the kernel here
+        kernel = np.ones((width, height)) * outer_weight
+        kernel[side_padding:side_padding + finger_width, :finger_height] = -finger_weight
+
+        if kernel.shape[0] % 2 == 0:
+            kernel = np.vstack((kernel, np.zeros((kernel.shape[1],))))
+
+        kernel = kernel.T
+        if flipped:
+            kernel = np.flipud(kernel)
+
+        return kernel
+
+    @staticmethod
+    def complex_finger_kernel(finger_width=2, finger_height=6, side_padding=2, top_padding=2, flipped=False):
+        """
+                 o o f f r r
+                 o o f f r r
+                 o o f f r r
+                 o o f f r r
+                 o o f f r r
+                 o o f f r r
+                 o o o r r r
+                 o o o r r r
+
+        value of o = 1/(count of o)
+        value of f = 1/(count of f)
+        value of r = -1/(count of r)
+        """
+
+        if (finger_height + top_padding) % 2 == 0:
+            top_padding += 1
+
+        #
+        width = finger_width + 2 * side_padding
+        height = finger_height + top_padding
+
+        kernel = np.zeros((width, height))
+
+        # Side pad weight is 1/the number of elements in it
+        padded_area_weight = 1 / (side_padding * height)
+        # print(f'Padded area weight {padded_area_weight}')
+
+        kernel[:side_padding, :] = padded_area_weight
+        kernel[-side_padding:, :] = -padded_area_weight
+
+        # These are the
+        symmetric_elements = int(finger_width / 2)
+        top_pad_weight = 1 / (symmetric_elements * top_padding)
+        # print(f'Top pad weight {top_pad_weight}')
+
+        # Setup the padding for the bottom
+        kernel[side_padding:side_padding + symmetric_elements, finger_height:] = top_pad_weight
+        kernel[-(side_padding + symmetric_elements):-side_padding, finger_height:] = -top_pad_weight
+
+        # Setup the weights for the finger
+        finger_weight = 1 / (finger_width * finger_height)
+        kernel[side_padding:side_padding + finger_width, :finger_height] = finger_weight
+
+        kernel = kernel.T
+        if flipped:
+            kernel = np.flipud(kernel)
+
+        return kernel
+
+    def apply(self, in_imgs, do_debug=False):
+        """
+
+        """
+
+        if self.finger_type == 'simple':
+            kernel = self.simple_finger_kernel(**self.params)
+        elif self.finger_type == 'complex':
+            kernel = self.complex_finger_kernel(**self.params)
+        else:
+            raise KeyError(f'finger_type can only be simple or complex')
+
+        #
+        out_imgs = Convolve().apply(in_imgs, kernel)
+
+        if do_debug:
+            Show(num_images=10, seed=1234).show((in_imgs, out_imgs))
 
         return out_imgs
