@@ -1,5 +1,4 @@
 import math
-import sys
 import threading
 from collections.abc import Iterable
 from multiprocessing import Process, Pipe
@@ -22,6 +21,9 @@ class ImageWrapper:
         self.images = images
         self.category = category
         self.image_labels = image_labels
+
+    def __invert__(self):
+        return self.images
 
 
 def input_check(indict, key, default, out_dict, exception=False):
@@ -125,7 +127,6 @@ def parallelize(funcs, args):
 
     :param funcs:
     :param args:
-    :param sender:
     :return:
     """
 

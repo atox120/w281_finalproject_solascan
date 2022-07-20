@@ -172,29 +172,34 @@ class DefectViewer:
     Visualizes defects and provides annotations in the form of bounding boxes or segmentations
     """
 
-    def __init__(self, il_obj=None, resize_shape=(224, 224)):
+    def __init__(self, il_obj=None, resize_shape=(224, 224), row_chop=0, col_chop=0):
         """
         :param il_obj: Object of ImageLoader. Default(None)
         :param resize_shape: Shape to resize the images when Default(224, 224)
+        :param row_chop: How many rows to remove from top and bottom
+        :param col_chop: How many cols to remove from left and right
         """
 
         self.il_obj = il_obj
         self.resize_shape = resize_shape
+        self.row_chop = row_chop
+        self.col_chop = col_chop
 
     def __lshift__(self, sample_df):
 
-        return ImageWrapper(self.shift_image_load(sample_df, self.resize_shape),
+        return ImageWrapper(self.shift_image_load(sample_df, self.resize_shape, (self.row_chop, self.col_chop)),
                             image_labels=sample_df['filename'].tolist(),
                             category='original', )
 
     @staticmethod
-    def shift_image_load(in_df_filename_or_list, resize_shape=(224, 224)):
+    def shift_image_load(in_df_filename_or_list, resize_shape=(224, 224), chop=(0, 0)):
         """
         Reads the images into numpy arrays from the source
         :param in_df_filename_or_list: if DataFrame then reads the fileloc colum of the DataFrame and creates an
             image column. If string then assumes that is a filename(with path) and returns numpy array. If list then
             assumes a list of filenames(with path) and returns a list of numpy arrays
         :param resize_shape:
+        :param chop:
         :return: Numpy array of shape (N, W, H)
         """
 
@@ -209,6 +214,7 @@ class DefectViewer:
             raise TypeError('in_df_filename_or_list can only be one of DataFrame, string or list')
 
         images = [cv2.resize(x, resize_shape, interpolation=cv2.INTER_CUBIC) for x in images]
+        images = [x[chop[1]:-chop[1], chop[0]:-chop[0]] for x in images]
         images = np.stack(images, axis=0)
 
         # Convert from 0 to 1
@@ -690,8 +696,17 @@ class Exposure:
         # Gain parameter controls the steepness of the sigmoid
         gain = self.params['gain']
         max_vals = in_imgs.max(axis=(-2, -1))
-        print(max_vals.shape)
-        out_imgs = np.stack([1/(1 + np.exp(-sign * gain * (img - (maxv * cutoff)))) for img, maxv in zip(in_imgs, max_vals)])
+        min_vals = in_imgs.min(axis=(-2, -1))
+        out_imgs = []
+        for img, maxv, minv in zip(in_imgs, max_vals, min_vals):
+            # Data range
+            val_range = maxv - minv
+            # Fraction at which to make the cutoff
+            cut_val = minv + (val_range * cutoff)
+            # This is the sigmoid adjusted image
+            adjusted = 1/(1 + np.exp(-sign * gain * (img - cut_val)))
+            out_imgs.append(adjusted)
+        out_imgs = np.stack(out_imgs)
 
         return out_imgs
 
@@ -789,7 +804,7 @@ if __name__ == '__main__':
         # Equalize using sigmoid
         # eq = Equalize(mode='sigmoid', gain=10, cutoff=0.5, inverse=True)
         # eq = Equalize(mode='gamma', gain=1, gamma=0.2)
-        Show(num_images=3, seed=43) << (Exposure(mode='histo') << imgs)
+        Show(num_images=3, seed=43) << (Exposure(mode='dynamic_sigmoid') << imgs)
 
         # eq.histogram_equalization(imgs)
         # eq.adaptive_histogram_equalization(imgs)

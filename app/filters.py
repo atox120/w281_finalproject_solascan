@@ -402,7 +402,7 @@ class HOG:
 
         return in_imw, out_imw
 
-    def apply(self, in_imgs):
+    def apply(self, in_imgs, get_images=True):
         """
 
         :return:
@@ -417,16 +417,19 @@ class HOG:
             chunk_size = 1 if chunk_size < 1 else chunk_size
 
             # Split the image into so many chunks
-            args = [in_imgs[i:i + chunk_size, :] for i in range(0, in_imgs.shape[0], chunk_size)]
+            args = [(in_imgs[i:i + chunk_size, :], get_images) for i in range(0, in_imgs.shape[0], chunk_size)]
             funcs = [self.apply_filter for _ in range(len(args))]
 
             # Collect the results from parallelize
             results = parallelize(funcs, args)
 
-            # Concatenate and return results
-            return np.concatenate(results, axis=0)
+            if get_images:
+                # Concatenate and return results
+                return np.concatenate(results, axis=0)
+            else:
+                return results
 
-    def apply_filter(self, in_imgs):
+    def apply_filter(self, in_imgs, get_images=True):
         """
         Applies a HOG filter, essentially a wrapper for the scikit-image.feature.hog() method.
 
@@ -435,10 +438,13 @@ class HOG:
         # the sk_hog method returns a tuple, and we are only interested in the image,
         # which is the second element.
         # For loop to apply the canny function to each img in the image array
-        out_list = [sk_hog(x, **self.params)[1] for x in in_imgs]
-        out_imgs = np.stack(out_list, axis=0)
+        if get_images:
+            out_list = [sk_hog(x, **self.params)[1] for x in in_imgs]
+            out_imgs = np.stack(out_list, axis=0)
 
-        return out_imgs
+            return out_imgs
+        else:
+            return [sk_hog(x, **self.params)[0] for x in in_imgs]
 
 
 if __name__ == '__main__':
