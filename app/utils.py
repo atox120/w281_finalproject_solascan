@@ -1,3 +1,4 @@
+import copy
 import math
 import threading
 from collections.abc import Iterable
@@ -11,7 +12,7 @@ class ImageWrapper:
     """
     Class for piping the images and their information through the various transforms. 
     Has attributes:
-    .images: the images themseles, stored as numpy arrays.
+    .images: the images themselves, stored as numpy arrays.
     .category: the defect class associated with the image, as string. 
     .image_labels: the labels associated with the each image, stored as a list. 
     """
@@ -24,6 +25,11 @@ class ImageWrapper:
 
     def __invert__(self):
         return self.images
+
+    def copy(self):
+
+        return ImageWrapper(self.images.copy(), image_labels=copy.deepcopy(self.image_labels),
+                            category=copy.deepcopy(self.category))
 
 
 def input_check(indict, key, default, out_dict, exception=False):
@@ -112,6 +118,7 @@ def parallel_wrapper(func, args, sender):
         else:
             args = make_iter(args)
             retval = func(*args)
+        # print(retval)
         sender.send(retval)
     except Exception:
         # exc_info = sys.exc_info()
@@ -134,7 +141,7 @@ def parallelize(funcs, args):
     processes = []
     pipe_list = []
     threads = []
-    for cnt, func, arg in zip(range(len(funcs)), funcs, args):
+    for cnt, (func, arg) in enumerate(zip(funcs, args)):
         # This pipe moves data from the process back to main function
         recv_end, send_end = Pipe(False)
 

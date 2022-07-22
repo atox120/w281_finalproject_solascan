@@ -6,6 +6,7 @@ data/
 *.jpg
 *.zip
 app/__pycache__/
+app/*.csv
 
 # Jupyter Notebook
 .ipynb_checkpoints
