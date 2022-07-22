@@ -1,6 +1,6 @@
 import copy
 import time
-
+import math
 import numpy as np
 from scipy.signal.windows import gaussian
 from scipy.ndimage import convolve, convolve1d
@@ -210,6 +210,14 @@ class Convolve:
             except KeyError:
                 self.axis = None
 
+        try:
+            self.num_jobs = kwargs['num_jobs']
+        except KeyError:
+            try:
+                self.num_jobs = kwargs['num_jobs']
+            except KeyError:
+                self.num_jobs = 1
+
         # Mode for treating the edges
         try:
             self.mode = kwargs['mode']
@@ -240,6 +248,30 @@ class Convolve:
         return in_imw, out_imw
 
     def apply(self, in_imgs, kernel):
+        """
+
+        :return:
+        """
+        if self.num_jobs == 1:
+            return self.apply_filter(in_imgs, kernel)
+        else:
+            # Divide in_imgs into chunks
+            # At least 2 images per job
+            num_jobs = self.num_jobs
+            chunk_size = math.ceil(in_imgs.shape[0]/num_jobs)
+            chunk_size = 1 if chunk_size < 1 else chunk_size
+
+            # Split the image into so many chunks
+            args = [(in_imgs[i:i + chunk_size, :], kernel) for i in range(0, in_imgs.shape[0], chunk_size)]
+            funcs = [self.apply_filter for _ in range(len(args))]
+
+            # Collect the results from parallelize
+            results = parallelize(funcs, args)
+
+            # Concatenate and return results
+            return np.concatenate(results, axis=0)
+
+    def apply_filter(self, in_imgs, kernel):
         """
         Wrapper for the scipy.signal.convolve2d method:
         https://docs.scipy.org/doc/scipy/reference/generated/scipy.signal.convolve2d.html#scipy.signal.convolve2d
@@ -413,7 +445,7 @@ class HOG:
             # Divide in_imgs into chunks
             # At least 2 images per job
             num_jobs = self.num_jobs
-            chunk_size = int(in_imgs.shape[0]/num_jobs)
+            chunk_size = math.ceil(in_imgs.shape[0]/num_jobs)
             chunk_size = 1 if chunk_size < 1 else chunk_size
 
             # Split the image into so many chunks

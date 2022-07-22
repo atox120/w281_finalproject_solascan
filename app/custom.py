@@ -8,6 +8,7 @@ from app.filters import HOG, Convolve, CreateKernel
 class Orient:
     def __init__(self, num_jobs=10, imgs_per_job=100):
         """
+        :param num_jobs:
         """
 
         self.num_jobs = num_jobs
@@ -174,14 +175,25 @@ class RemoveBusBars:
 
 class HighlightFrontGrid:
 
-    def __init__(self, finger_mult=10):
+    def __init__(self, num_jobs=1, reduce_max=1, finger_mult=10, finger_height=15, max_finger_width=8, padding_mult=2):
         """
-        :param finger_mult: How much to weight inside of the finger as compared to the outside
+        :param finger_mult: How much to weight inside of finger as compared to the outside
+        :param num_jobs: Number of jobs to parallelize HOG
+        :param reduce_max: Reduce using max(1) or min(0)
+        :param max_finger_width: Maximum finger width
+        :param finger_height: Height of finger
         """
 
         self.finger_type = 'simple'
-        self.params = {'finger_width': 2, 'finger_height': 6, 'finger_mult': finger_mult,
-                       'side_padding': 2, 'top_padding': 3, 'flipped': False}
+        self.num_jobs = num_jobs
+        self.reduce_max = reduce_max
+        self.finger_height = finger_height
+        self.finger_mult = finger_mult
+        self.max_finger_width = max_finger_width
+        self.padding_mult = padding_mult
+        self.params = {'finger_width': 2, 'finger_height': self.finger_height,
+                       'finger_mult': self.finger_mult, 'side_padding': 2,
+                       'top_padding': 0, 'flipped': False}
 
     def __lshift__(self, in_imw):
 
@@ -216,7 +228,7 @@ class HighlightFrontGrid:
         """
 
         if (finger_height + top_padding) % 2 == 0:
-            top_padding += 1
+            finger_height += 1
 
         # Width and height of the finger
         width = finger_width + 2 * side_padding
@@ -307,20 +319,21 @@ class HighlightFrontGrid:
         all_ops = []
         after_conv = []
         after_sobel = []
-        for side_padding, finger_width in zip([4, 8, 12], [2, 4, 6]):
+        for finger_width in range(2, self.max_finger_width):
             params = copy.deepcopy(self.params)
-            params['side_padding'] = side_padding
+            #
+            params['side_padding'] = finger_width * self.padding_mult
             params['finger_width'] = finger_width
 
             # Convolve the image with kernel
             # Stretch the values after applying kernel
             kernel = self.simple_finger_kernel(**params)
-            conv_imgs = Convolve().apply(stretched_imgs, kernel)
+            conv_imgs = Convolve(num_jobs=self.num_jobs).apply(stretched_imgs, kernel)
             conv_stretch = Exposure('stretch').apply(conv_imgs)
 
             # Apply sobel on opt of it
             sobel_kernel = CreateKernel(kernel='sobel', axis=0).apply()
-            sobel_imgs = Convolve().apply(conv_stretch, sobel_kernel)
+            sobel_imgs = Convolve(num_jobs=self.num_jobs).apply(conv_stretch, sobel_kernel)
 
             if do_debug:
                 after_conv.append(conv_stretch)
@@ -331,14 +344,20 @@ class HighlightFrontGrid:
 
         # Take a Max across all configurations
         multi_stack = np.stack(all_ops, axis=0)
-        multi_stack = np.max(multi_stack, axis=0)
+
+        if self.reduce_max:
+            multi_stack = np.max(multi_stack, axis=0)
+        else:
+            multi_stack = np.min(multi_stack, axis=0)
 
         # Apply HOG on the multi stack
         # hog_imgs = HOG(pixels_per_cell=(5, 5), num_jobs=20).apply(multi_stack, get_images=True)
         stretch = Exposure('stretch').apply(multi_stack)
 
+        # Perform the HIG
+        hog_imgs = HOG(pixels_per_cell=(5, 5), num_jobs=self.num_jobs).apply(stretch, get_images=True)
+
         if do_debug:
             Show(num_images=10, seed=1234).show(
                 (in_imgs, stretched_imgs,) + tuple(after_conv) + tuple(after_sobel) + (multi_stack, stretch))
-
-        return stretch
+        return hog_imgs
