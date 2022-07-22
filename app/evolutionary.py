@@ -159,7 +159,7 @@ class Evolver:
         feature_mask = np.repeat(feature_mask, self.parent_gen.shape[0], axis=0)
 
         # All the integers are set to 1
-        # Adding a arandom number will make them greater than 1
+        # Adding a random number will make them greater than 1
         # Now pegging it at 1 should do the trick
         feature_mask = np.random.random(feature_mask.shape) + feature_mask
         feature_mask[feature_mask > 1] = 1
@@ -253,7 +253,7 @@ class Rastrigin:
     def __init__(self, dimensions=5):
         """
 
-        :param dimensions: Number of dimensions in the Rastriging function
+        :param dimensions: Number of dimensions in the Rastrigin function
         """
         self.d = dimensions
 
