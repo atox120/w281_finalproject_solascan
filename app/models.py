@@ -9,7 +9,7 @@ from app.utils import ImageWrapper
 class Classifier:
     def __init__(self, defect, not_defect, model_class, data_class):
 
-        # These are the images to
+        # These are the images
         self.defect = defect
         self.not_defect = not_defect
         self.model_class = model_class
@@ -122,7 +122,7 @@ class Classifier:
         1. Apply the params to the data_class and model_class a
         2. Apply PCA
         3. Train the model
-        4. Test the model against CV data
+        4. Test the model against Cross Validation data
         """
 
         try:
