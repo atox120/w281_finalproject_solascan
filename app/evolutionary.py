@@ -244,7 +244,6 @@ class Evolver:
             self.parent_gen.to_csv(f'generation_{gen+1}.csv')
             print(f"Completed generation {gen+1} with response {self.parent_gen.iloc[0]['response']}")
 
-            break
         return self.parent_gen
 
 
