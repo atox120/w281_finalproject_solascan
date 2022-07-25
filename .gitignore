@@ -1,5 +1,5 @@
 # Image files
-data/
+data/images/
 .idea/*
 *.pyc
 *.png

@@ -192,9 +192,10 @@ class Convolve:
     Convolves a kernel with the array
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, consume_kwargs=True, **kwargs):
         """
 
+        :param consume_kwargs: If True check for unused Kwargs
         :param mode: Convolution model.
                     See https://docs.scipy.org/doc/scipy/reference/generated/scipy.ndimage.convolve1d.html
         :param cval: If mode is constant then this value will be used.
@@ -204,23 +205,24 @@ class Convolve:
 
         try:
             self.axis = kwargs['axis']
+            del kwargs['axis']
         except KeyError:
             try:
                 self.axis = kwargs['axes']
+                del kwargs['axes']
             except KeyError:
                 self.axis = None
 
         try:
             self.num_jobs = kwargs['num_jobs']
+            del kwargs['num_jobs']
         except KeyError:
-            try:
-                self.num_jobs = kwargs['num_jobs']
-            except KeyError:
-                self.num_jobs = 1
+            self.num_jobs = 1
 
         # Mode for treating the edges
         try:
             self.mode = kwargs['mode']
+            del kwargs['mode']
         except KeyError:
             self.mode = 'reflect'
 
@@ -228,8 +230,12 @@ class Convolve:
         if self.mode == 'constant':
             try:
                 self.cval = kwargs['cval']
+                del kwargs['cval']
             except KeyError:
                 pass
+
+        if consume_kwargs and kwargs:
+            raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
 
     def __lshift__(self, kern_out):
         """
@@ -311,10 +317,11 @@ class Canny:
     https://scikit-image.org/docs/stable/auto_examples/edges/plot_canny.html
     """
 
-    def __init__(self, sigma, **kwargs):
+    def __init__(self, sigma, consume_kwargs=True,  **kwargs):
         """
 
         :param sigma:
+        :param consume_kwargs: If True check for empty kwargs
         :param **kwargs: see below
 
         :keyword Arguments:
@@ -334,7 +341,7 @@ class Canny:
         input_check(kwargs, 'mode', 'constant', self.params, exception=False)
         input_check(kwargs, 'cval', 0.0, self.params, exception=False)
 
-        if kwargs:
+        if consume_kwargs and kwargs:
             raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
 
     def __lshift__(self, in_imw):
@@ -382,14 +389,14 @@ class HOG:
 
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, consume_kwargs=True, **kwargs):
         """
         Note the following parameters are not configurable given our datapoints:
         - visualize = True: returns the image of the HOG
         - multichannel = False: does not allow multichannel images.
         - channel_axis = None: does not allow specification of the channel axis.
 
-        :param orientation: number of orientation bins.
+        :param consume_kwargs: If True then check for empty kwargs
         :param pixels_per_cell: tuple of the number of cells per block.
 
         :return:
@@ -408,7 +415,7 @@ class HOG:
         input_check(kwargs, 'num_jobs', 1, self.num_jobs, exception=False)
         self.num_jobs = self.num_jobs['num_jobs']
 
-        if kwargs:
+        if consume_kwargs and kwargs:
             raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
 
     def __lshift__(self, in_imw):
