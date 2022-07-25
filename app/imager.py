@@ -8,8 +8,9 @@ import pandas as pd
 from skimage import exposure
 import matplotlib.pyplot as plt
 from random import shuffle as shuf
-import matplotlib.patches as patches
 from collections.abc import Iterable
+import matplotlib.patches as patches
+from matplotlib.colors import Normalize
 from app.utils import input_check, ImageWrapper, chunk, line_split_string
 
 
@@ -39,26 +40,29 @@ class ImageLoader:
             this_file_location = os.path.abspath("")
 
         # This is the
-        self.processed_annotation_path = os.path.join(this_file_location, "../data/processed_annotations.csv")
-        self.train_files = os.path.join(this_file_location, "../data/train.csv")
-        self.test_files = os.path.join(this_file_location, "../data/test.csv")
         self.train_file_loc = os.path.join(this_file_location, "../data/images/train")
         self.test_file_loc = os.path.join(this_file_location, "../data/images/test")
 
         # These are the hand selected good files
-        all_bad = pd.DataFrame()
-        for filename in ['Alex_.csv', 'Andi_.csv', 'Aswin_.csv', 'Dan_.csv']:
-            all_bad = pd.concat((all_bad, pd.read_csv(f"../data/{filename}")))
-            all_bad = all_bad[np.logical_not(all_bad['clean'])]
+        all_good = pd.read_csv("../data/andi_segmented.csv")
+        all_bad = all_good[np.logical_not(all_good['clean'])]
+
+        # Keep only FrontGrid from this file
+        front_grid_df = pd.read_csv("../data/front_grid.csv")
 
         # Load the multiple DataFrames
-        self.annotations_df = pd.read_csv(self.processed_annotation_path)
-        self.train_files_df = pd.read_csv(self.train_files)
-        self.test_files_df = pd.read_csv(self.test_files)
+        self.annotations_df = pd.read_csv("../data/processed_annotations.csv")
+        self.train_files_df = pd.read_csv("../data/train.csv")
+        self.test_files_df = pd.read_csv("../data/test.csv")
 
         # Remove all bad data files from annotations
         self.annotations_df = \
             self.annotations_df[np.logical_not(self.annotations_df['filename'].isin(all_bad['filename']))]
+
+        # Remove all Front Grid Interruptions
+        self.annotations_df = self.annotations_df[self.annotations_df['defect_class'] != 'FrontGridInterruption']
+        # Add the hand selected ones back
+        self.annotations_df = pd.concat((self.annotations_df, front_grid_df[self.annotations_df.columns]))
 
         # Keep only one copy of the file and folder
         self.cv_files_df = pd.DataFrame()
@@ -214,7 +218,7 @@ class DefectViewer:
             raise TypeError('in_df_filename_or_list can only be one of DataFrame, string or list')
 
         images = [cv2.resize(x, resize_shape, interpolation=cv2.INTER_CUBIC) for x in images]
-        images = [x[chop[1]:-chop[1], chop[0]:-chop[0]] for x in images]
+        images = [x[chop[1]:-(chop[1] + 1), chop[0]:-(chop[0] + 1)] for x in images]
         images = np.stack(images, axis=0)
 
         # Convert from 0 to 1
@@ -430,7 +434,7 @@ class DefectViewer:
                 ax = fig.add_subplot(group_df.shape[0], 2, index*2 + 1)
 
                 # Show
-                ax.imshow(row['image'], cmap='gray')
+                ax.imshow(row['image'], cmap='gray', norm=Normalize(vmin=0, vmax=1, clip=True))
                 ax.set_title(filename)
 
                 # Add a subplot to the figure
@@ -438,7 +442,7 @@ class DefectViewer:
                 ax = fig.add_subplot(group_df.shape[0], 2, index*2 + 2)
 
                 # Show the defect annotations
-                ax.imshow(row['image'], cmap='gray')
+                ax.imshow(row['image'], cmap='gray', norm=Normalize(vmin=0, vmax=1, clip=True) )
                 ax.set_title(group_name)
 
                 for annotation in this_file_df[annotation_column]:
@@ -531,7 +535,8 @@ class Show:
             for col_cnt in range(len(in_imgs)):
                 img_cnt = plt_rows*n_cols + col_cnt + 1
                 ax = fig.add_subplot(n_rows, n_cols, img_cnt)
-                ax.imshow(np.squeeze(in_imgs[col_cnt][row_cnt, :, :]), cmap='gray')
+                ax.imshow(np.squeeze(in_imgs[col_cnt][row_cnt, :, :]), cmap='gray',
+                          norm=Normalize(vmin=0, vmax=1, clip=True))
 
                 if col_cnt == 0 and image_labels is not None:
                     ax.set_ylabel(chunk(image_labels[row_cnt]), size='large')
@@ -556,10 +561,11 @@ class Show:
 
 class Exposure:
 
-    def __init__(self, mode='histo', **kwargs):
+    def __init__(self, mode='histo', consume_kwargs=True, **kwargs):
         """
 
         :param mode: Histo, Gamma,
+        :param consume_kwargs:
         :param kwargs:
         """
 
@@ -579,7 +585,7 @@ class Exposure:
 
             # Check if clip input is provided
             input_check(kwargs, 'nbins', None, self.params, exception=False)
-        elif mode == 'sigmoid' or 'dynamic_sigmoid':
+        elif mode == 'sigmoid' or mode == 'dynamic_sigmoid':
             # Check if kernel_size input is provided
             input_check(kwargs, 'cutoff', 0.5, self.params, exception=False)
 
@@ -595,7 +601,7 @@ class Exposure:
             # Check if clip input is provided
             input_check(kwargs, 'gain', 1, self.params, exception=False)
 
-        if kwargs:
+        if consume_kwargs and kwargs:
             raise KeyError(f'Unused keys in kwargs {kwargs.keys()}')
 
     def __lshift__(self, in_imw):
@@ -718,13 +724,13 @@ class Exposure:
         :return:
         """
 
-        # Cutoff point for the sigmoid
+        # Gamma value
         gamma = self.params['gamma']
 
-        # Gain parameter controls the steepness of the sigmoid
+        # Gain parameter controls the steepness of the gamma
         gain = self.params['gain']
 
-        return gain*in_imgs**gamma
+        return gain*(in_imgs**gamma)
 
     @staticmethod
     def invert(in_imgs):
