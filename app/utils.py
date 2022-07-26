@@ -26,6 +26,30 @@ class ImageWrapper:
     def __invert__(self):
         return self.images
 
+    def __len__(self):
+        return self.images.shape[0]
+
+    def __sub__(self, other):
+        """
+
+        :param other: Remove the labels from this Wrapper if it exists in the other
+        :return:
+        """
+        if not isinstance(other, ImageWrapper):
+            raise TypeError('Other must be and ImageWrapper object')
+
+        keep = []
+        for cnt, x in enumerate(self.image_labels):
+            # If this image is not in other then keep it
+            if x not in other.image_labels:
+                keep.append(cnt)
+
+        # These are the images to keep
+        images = self.images[keep]
+        image_labels = [self.image_labels[x] for x in keep]
+
+        return ImageWrapper(images.copy(), image_labels=image_labels, category=copy.deepcopy(self.category))
+
     def copy(self):
 
         return ImageWrapper(self.images.copy(), image_labels=copy.deepcopy(self.image_labels),
