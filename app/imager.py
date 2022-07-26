@@ -63,6 +63,25 @@ class ImageLoader:
         self.annotations_df = self.annotations_df[self.annotations_df['defect_class'] != 'FrontGridInterruption']
         # Add the hand selected ones back
         self.annotations_df = pd.concat((self.annotations_df, front_grid_df[self.annotations_df.columns]))
+        
+        ## Clean up the Cracks defect class 
+        file_list = ['../data/Closed_.csv', '../data/Resistive_.csv', '../data/Isolated_.csv']
+        defect_list = ['Closed', 'Resistive', 'Isolated']
+        original_cols = self.annotations_df.keys()
+
+        for i in range(len(file_list)):
+
+            #Load corrections
+            corrections = pd.read_csv(file_list[i])
+            # Merge onto lain df
+            image_combined = self.annotations_df.merge(corrections, left_on='filename', right_on='filename', how='left')
+            # process the corrections
+            image_combined['indx'] =image_combined.apply(
+                lambda x: self.convert_annotations(x.clean, x.defect_class, f'{defect_list[i]}'), axis=1)
+            # Apply filter
+            corrected_df = image_combined[image_combined['indx']]
+            # Revert to original columns
+            self.annotations_df = corrected_df[original_cols]
 
         # Keep only one copy of the file and folder
         self.cv_files_df = pd.DataFrame()
@@ -83,6 +102,24 @@ class ImageLoader:
     def __lshift__(self, n):
 
         return self.load_n(n, shuffle=self.shuffle, defect_classes=self.defect_class)
+    
+    def convert_annotations(self, x, y, filter_string):
+        """converts type of annotation from the annotation checker into boolean
+        :param x: the annotation as string. 
+        :param y: the defect class to which this is applied
+        :param filter_string: filter value
+        :return: Boolean
+        """
+
+        if y == filter_string:
+            if (x == 'TRUE') | (x == True) | (x == 'True'):
+                return True
+            elif (x == 'FALSE') | (x == 'spider') | (x == False) | (x == 'False'):
+                return False
+            else:
+                return f"Debug {x} {y}"
+        else:
+            return True
 
     def split_train_cv(self,  train_split=0.8, seed=2**17):
         """
