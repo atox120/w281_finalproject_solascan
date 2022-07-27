@@ -66,12 +66,13 @@ class ImageLoader:
         self.annotations_df = pd.concat((self.annotations_df, front_grid_df[self.annotations_df.columns]))
         
         ## Clean up the Cracks defect class 
-        file_list = ['../data/Closed_.csv', '../data/Resistive_.csv', '../data/Isolated_.csv']
-        defect_list = ['Closed', 'Resistive', 'Isolated']
+        file_list = ['../data/Closed_.csv', '../data/Resistive_.csv', '../data/Isolated_.csv',
+                     '../data/BrightSpot_.csv', '../data/Corrosion_.csv'
+                    ]
+        defect_list = ['Closed', 'Resistive', 'Isolated', 'BrightSpot', 'Corrosion']
         original_cols = self.annotations_df.keys()
 
         for i in range(len(file_list)):
-
             #Load corrections
             corrections = pd.read_csv(file_list[i])
             # Merge onto lain df
