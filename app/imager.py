@@ -21,16 +21,17 @@ class ImageLoader:
 
     """
 
-    def __init__(self, shuffle=True, defect_class=None):
+    def __init__(self, shuffle=True, defect_class=None, is_not=False):
         """
 
         :param shuffle: Shuffle the samples before
         :param defect_class: None -> all defect classes. List -> ['FrontGridInterruption', 'Closed'], just these
             classes. string -> 'FrontGridInterruption', one class
         """
-
+        
         self.shuffle = shuffle
         self.defect_class = defect_class
+        self.is_not = is_not
 
         # Where the processed annotations csv file is stored.
         # if running windows, we need to change the backslashes to forward slashes. 
@@ -65,12 +66,13 @@ class ImageLoader:
         self.annotations_df = pd.concat((self.annotations_df, front_grid_df[self.annotations_df.columns]))
         
         ## Clean up the Cracks defect class 
-        file_list = ['../data/Closed_.csv', '../data/Resistive_.csv', '../data/Isolated_.csv']
-        defect_list = ['Closed', 'Resistive', 'Isolated']
+        file_list = ['../data/Closed_.csv', '../data/Resistive_.csv', '../data/Isolated_.csv',
+                     '../data/BrightSpot_.csv', '../data/Corrosion_.csv'
+                    ]
+        defect_list = ['Closed', 'Resistive', 'Isolated', 'BrightSpot', 'Corrosion']
         original_cols = self.annotations_df.keys()
 
         for i in range(len(file_list)):
-
             #Load corrections
             corrections = pd.read_csv(file_list[i])
             # Merge onto lain df
@@ -101,7 +103,7 @@ class ImageLoader:
 
     def __lshift__(self, n):
 
-        return self.load_n(n, shuffle=self.shuffle, defect_classes=self.defect_class)
+        return self.load_n(n, shuffle=self.shuffle, defect_classes=self.defect_class, is_not=self.is_not)
     
     def convert_annotations(self, x, y, filter_string):
         """converts type of annotation from the annotation checker into boolean
@@ -152,7 +154,7 @@ class ImageLoader:
 
         return self.instance_count[defect_class]
 
-    def load_n(self, n, shuffle=True, defect_classes=None):
+    def load_n(self, n, shuffle=True, defect_classes=None, is_not=False):
         """
         Loads n images and returns a DataFrame with following schema:
             [filename, bounding_boxes, annotation_shape, segmentations]
@@ -171,8 +173,7 @@ class ImageLoader:
         Usage:
 
 
-        """
-
+        """ 
         if defect_classes is not None:
             # If it is not a list then make it a list
             if not isinstance(defect_classes, list):
@@ -181,7 +182,7 @@ class ImageLoader:
                     defect_classes = [defect_classes, ]
                 else:
                     raise ValueError('defect_classes can only be one of string(defect class name), '
-                                     'list of strong of defect classes or None(all classes)')
+                                     'list of string of defect classes or None(all classes)')
             if not set(defect_classes).issubset(set(self.defect_classes)):
                 raise ValueError(f'Defect classes can only be one of {self.defect_classes}')
         else:
@@ -194,13 +195,22 @@ class ImageLoader:
             self.main_df = self.main_df.sort_values(by='sno')
 
         # Return the DataFrame with the classes and the images
-        self.sample_df = self.main_df.groupby('defect_class').head(n)
-        self.sample_df = self.sample_df[['filename', 'bounding_box_coords',
+        # self.sample_df = self.main_df.groupby('defect_class').head(n) - #AT I think this shold be the last step.  
+        self.sample_df = self.main_df[['filename', 'bounding_box_coords',
                                          'annotation_shape', 'region_shape_attributes',
                                          'defect_class']]
+        
+        # Process whether we are selecting the defect class (is_not = False) 
+        # or all other classes except the defect class (is_not = True)
+        if self.is_not:
+            fname_list = self.sample_df[self.sample_df['defect_class'].isin(defect_classes)].filename.unique().tolist()
+            self.sample_df = self.sample_df[np.logical_not(self.sample_df['filename'].isin(fname_list))]
+        else:
+            # If defect classes were provided then only keep the required ones
+            self.sample_df = self.sample_df[self.sample_df['defect_class'].isin(defect_classes)]
 
-        # If defect classes were provided then only keep the required ones
-        self.sample_df = self.sample_df[self.sample_df['defect_class'].isin(defect_classes)]
+        #Filter to get n instances. 
+        self.sample_df = self.sample_df.head(n) 
 
         # Add the location of the files to read from
         self.sample_df['fileloc'] = [os.path.join(self.train_file_loc, x) for x in self.sample_df['filename']]
