@@ -203,7 +203,8 @@ class ImageLoader:
         # Process whether we are selecting the defect class (is_not = False) 
         # or all other classes except the defect class (is_not = True)
         if self.is_not:
-            self.sample_df = self.sample_df[np.logical_not(self.sample_df['defect_class'].isin(defect_classes))]
+            fname_list = self.sample_df[self.sample_df['defect_class'].isin(defect_classes)].filename.unique().tolist()
+            self.sample_df = self.sample_df[np.logical_not(self.sample_df['filename'].isin(fname_list))]
         else:
             # If defect classes were provided then only keep the required ones
             self.sample_df = self.sample_df[self.sample_df['defect_class'].isin(defect_classes)]
