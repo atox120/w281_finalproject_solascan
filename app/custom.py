@@ -1,5 +1,8 @@
 import copy
 import numpy as np
+
+from scipy.signal import find_peaks
+
 from app.imager import Show, Exposure
 from app.utils import ImageWrapper, input_check
 from app.filters import HOG, Convolve, CreateKernel
@@ -93,6 +96,99 @@ class Orient:
         return rotated_images, rotated_hog
 
 
+class BusBarMask:
+    
+    def __init__(self, invert=False, edge_buffer=15, filter_length=4, filter_divisor = 3, 
+                 sigmoid_cutoff=0.3, hog_ratio=4,num_jobs=10, imgs_per_job=100):
+        """
+        Creates a mask for the busbars, along the full width of the image
+        
+        :param invert: True that the busbars are 1 and rest is 0
+                        False for busbars are 0 and rest is 1
+        :edge buffer: Distance from top and bottom edge in pixels in which we ignore any busbars
+                        detected. Default is 0. 
+                        
+        :param filter length: 1D filter length, Increase to return thicker borders around the busbar
+        :param filter_divisor: divisor on the filter, increase to reduce the value of the kernel
+        """
+        
+        self.invert = False
+        self.edge_buffer = edge_buffer
+        self.filter_length = filter_length
+        self.filter_divisor = filter_divisor
+        
+        self.hog_ratio = hog_ratio
+        self.sigmoid_cutoff = sigmoid_cutoff
+        
+        self.num_jobs = num_jobs
+        self.imgs_per_job = imgs_per_job
+
+        self.hog_params = {'pixels_per_cell': (3, 3), 'num_jobs': num_jobs}
+
+    def __lshift__(self, in_imw):
+
+        # Apply the transformation to these images
+        out_img = self.apply(in_imw[0].images, in_imw[1].images)
+        category = in_imw[-1].category
+        category += f'\n Busbar Mask'
+        out_imw = ImageWrapper(out_img, category=category, image_labels=copy.deepcopy(in_imw[-1].image_labels))
+
+        return in_imw[-1], out_imw
+
+    def get_hog_mask(self, in_hogs):
+        """
+        :param in_hogs:
+
+        """
+        # Get HOG transformed images
+        hog_imgs = HOG(**hog_params).apply(in_hogs)
+
+        # Exposure stretch the HOG image and apply the sigmoid
+        hog_stretched = Exposure('stretch').apply(hog_imgs)
+
+        # Mask the HOG and apply the sigmoid
+        sig_hog = Exposure('sigmoid').apply(hog_stretched)
+
+        # Sum the pixel values in the X direction
+        hog_signal = sig_hog.sum(axis=-1).astype(int)
+        
+        #Convolve the HOG Signal
+        busbar_filter = np.ones(self.filter_length) / self.filter_divisor
+        [np.convolve(img, my_filter) for img in hog_signal]
+        
+
+        # These are the minimum counts per row that are acceptable
+        hog_threshold = (convolved_signal.max(axis=-1) / self.hog_ratio)[:, np.newaxis]
+
+        # All rows that are greater than the threshold for that image
+        # noinspection PyUnresolvedReferences
+        hog_index = (hog_signal > hog_threshold).astype(int)
+
+        # Create row-wise mask by repeating the index along the columns
+        mask = np.repeat(hog_index[:,:,np.newaxis], h_img.shape[1], axis=2)
+        
+        #Threshold values
+        mask[mask > 0]=1
+
+        #Apply buffer
+        mask[:, 0:self.edge_buffer,:] = 0
+        mask[:, -self.edge_buffer:,:] = 0
+
+
+        return mask
+
+    def apply(self, in_hogs, in_imgs, do_debug=False):
+        """
+        """
+
+        # Create the HOG to apply to the images
+        final_mask = self.get_hog_mask(in_hogs)
+
+        if do_debug:
+            Show(num_images=10, seed=1234).show((final_mask, in_imgs))
+
+        return out_imgs
+    
 class RemoveBusBars:
     def __init__(self, num_jobs=10, imgs_per_job=100):
         """
@@ -171,6 +267,7 @@ class RemoveBusBars:
             Show(num_images=10, seed=1234).show((final_hog, in_imgs, out_imgs))
 
         return out_imgs
+
 
 
 class HighlightFrontGrid:

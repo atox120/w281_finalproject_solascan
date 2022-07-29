@@ -883,7 +883,7 @@ class Threshold_Multiotsu:
             levels = sk_threshold_multiotsu(x, **self.params)
             self.levels.append(levels)
             #apply thresholding to image 
-            out_list.append(np.digitize(x, bins=levels)
+            out_list.append(np.digitize(x, bins=levels))
             
         out_imgs = np.stack(out_list, axis=0)
 
