@@ -102,7 +102,7 @@ class SIFT:
         histo = np.zeros((self.params['n_clusters'], ))
         histo[bins] = counts
 
-        return histo
+        return histo[:, np.newaxis].T
 
     def fit(self, in_imgs):
         """
@@ -120,7 +120,7 @@ class SIFT:
         self.centers = self.centers[np.newaxis, :, :]
 
         # Create histogram for each image
-        histos = [self._get_histo(x) for x in features]
+        histos = np.concatenate([self._get_histo(x) for x in features], axis=0)
 
         return histos
 
@@ -135,7 +135,7 @@ class SIFT:
         descriptors, features = self._get_descriptors(in_imgs)
 
         # Create histogram for each image
-        histos = [self._get_histo(x) for x in features]
+        histos = np.concatenate([self._get_histo(x) for x in features], axis=0)
 
         return histos
 
@@ -236,7 +236,7 @@ class KAZE:
         histo = np.zeros((self.params['n_clusters'], ))
         histo[bins] = counts
 
-        return histo
+        return histo[:, np.newaxis].T
 
     def fit(self, in_imgs):
         """
@@ -254,7 +254,7 @@ class KAZE:
         self.centers = self.centers[np.newaxis, :, :]
 
         # Create histogram for each image
-        histos = [self._get_histo(x) for x in features]
+        histos = np.concatenate([self._get_histo(x) for x in features], axis=0)
 
         return histos
 
@@ -269,6 +269,6 @@ class KAZE:
         descriptors, features = self._get_descriptors(in_imgs)
 
         # Create histogram for each image
-        histos = [self._get_histo(x) for x in features]
+        histos = np.concatenate([self._get_histo(x) for x in features], axis=0)
 
         return histos
