@@ -211,19 +211,22 @@ def get_output_shape(model, image_dim):
 
 
 class CNN(nn.Module):
-    def __init__(self, num_output_classes, channels=(1, 20, 20), input_shape=(1, 1, 174, 174)):
+    def __init__(self, num_output_classes, channels=((1, 5), (20, 3), (20, 3)),
+                 input_shape=(1, 1, 174, 174)):
         # call the parent constructor
         super(CNN, self).__init__()
 
         self.layers = nn.ModuleList([])
-        in_channel = channels[0]
+        in_channel = channels[0][0]
         output_shape = input_shape
-        for out_channel in channels[1:]:
+        for out_channel, kernel_size in channels[1:]:
             # Initialize the number of layers
-            self.layers.append(nn.Conv2d(in_channels=in_channel, out_channels=out_channel, kernel_size=(5, 5)))
+            self.layers.append(nn.Conv2d(in_channels=in_channel, out_channels=out_channel,
+                                         kernel_size=(kernel_size, kernel_size)))
             output_shape = get_output_shape(self.layers[-1], output_shape)
 
             self.layers.append(nn.ReLU())
+            self.layers.append(nn.BatchNorm2d(num_features=in_channel[1]))
             self.layers.append(nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2)))
             output_shape = get_output_shape(self.layers[-1], output_shape)
             in_channel = out_channel
@@ -463,6 +466,8 @@ class ModelCNN:
             print(f'Epoch {epoch} train loss {epoch_train_loss[-1]} val loss {epoch_val_loss[-1]}')
 
             # If it is the best loss till now then save the model
+            state_dict = copy.deepcopy(self.model_params)
+            state_dict.update()
             if len(epoch_val_loss) > 1 and epoch_val_loss[-1] < np.min(epoch_val_loss[:-1]):
                 state = {'epoch': epoch + 1, 'arch': 'CNN', 'best_loss': epoch_train_loss[-1],
                          'state_dict': model.state_dict(), 'model_params': self.model_params}
@@ -508,6 +513,8 @@ class ModelCNN:
         # 1 so that a massive array is not created
         model_params['input_shape'] = list(self.X.shape)
         model_params['input_shape'][0] = 1
+        # Update the input model params
+        self.model_params = model_params
         self.model = CNN(**model_params)
 
         self._get_optimizer()

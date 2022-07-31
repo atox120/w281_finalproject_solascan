@@ -66,12 +66,13 @@ class ImageLoader:
         self.annotations_df = pd.concat((self.annotations_df, front_grid_df[self.annotations_df.columns]))
         
         ## Clean up the Cracks defect class 
-        file_list = ['../data/Closed_.csv', '../data/Resistive_.csv', '../data/Isolated_.csv']
-        defect_list = ['Closed', 'Resistive', 'Isolated']
+        file_list = ['../data/Closed_.csv', '../data/Resistive_.csv', '../data/Isolated_.csv',
+                     '../data/BrightSpot_.csv', '../data/Corrosion_.csv'
+                    ]
+        defect_list = ['Closed', 'Resistive', 'Isolated', 'BrightSpot', 'Corrosion']
         original_cols = self.annotations_df.keys()
 
         for i in range(len(file_list)):
-
             #Load corrections
             corrections = pd.read_csv(file_list[i])
             # Merge onto lain df
@@ -202,7 +203,8 @@ class ImageLoader:
         # Process whether we are selecting the defect class (is_not = False) 
         # or all other classes except the defect class (is_not = True)
         if self.is_not:
-            self.sample_df = self.sample_df[np.logical_not(self.sample_df['defect_class'].isin(defect_classes))]
+            fname_list = self.sample_df[self.sample_df['defect_class'].isin(defect_classes)].filename.unique().tolist()
+            self.sample_df = self.sample_df[np.logical_not(self.sample_df['filename'].isin(fname_list))]
         else:
             # If defect classes were provided then only keep the required ones
             self.sample_df = self.sample_df[self.sample_df['defect_class'].isin(defect_classes)]

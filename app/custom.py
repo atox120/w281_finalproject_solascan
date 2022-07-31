@@ -36,7 +36,7 @@ class Orient:
     @staticmethod
     def fix_orientation(filt_hogs, in_imgs, in_hogs):
         """
-        Direction of greatest orientaiton is the direction of busbars
+        Direction of greatest orientation is the direction of busbars
         :param filt_hogs:
         :param in_hogs:
         :param in_imgs:
@@ -94,27 +94,84 @@ class Orient:
 
 
 class RemoveBusBars:
-    def __init__(self, num_jobs=10, imgs_per_job=100):
+    def __init__(self, consume_kwargs=True, **kwargs):
         """
         """
 
-        self.num_jobs = num_jobs
-        self.imgs_per_job = imgs_per_job
-        self.hog_ratio = 4
-        self.sigmoid_cutoff = 0.3
+        if 'num_jobs' in kwargs:
+            self.num_jobs = kwargs['num_jobs']
+            del kwargs['num_jobs']
+        else:
+            self.num_jobs = 1
 
-        self.hog_params = {'pixels_per_cell': (3, 3), 'num_jobs': num_jobs}
+        if 'imgs_per_job' in kwargs:
+            self.imgs_per_job = kwargs['imgs_per_job']
+            del kwargs['imgs_per_job']
+        else:
+            self.imgs_per_job = 100
+
+        if 'sigmoid_cutoff' in kwargs:
+            self.sigmoid_cutoff = kwargs['sigmoid_cutoff']
+            del kwargs['sigmoid_cutoff']
+        else:
+            self.sigmoid_cutoff = 0.3
+
+        if 'hog_ratio' in kwargs:
+            self.hog_ratio = kwargs['hog_ratio']
+            del kwargs['hog_ratio']
+        else:
+            self.hog_ratio = 4
+
+        if 'zero_bars' in kwargs:
+            self.zero_bars = kwargs['zero_bars']
+            del kwargs['zero_bars']
+        else:
+            self.zero_bars = False
+
+        self.params = {}
+        input_check(kwargs, 'pixels_per_cell', (3, 3), self.params, exception=False)
+        input_check(kwargs, 'cells_per_block', (3, 3), self.params, exception=False)
+        input_check(kwargs, 'block_norm', 'L2-Hys', self.params, exception=False)
+        input_check(kwargs, 'transform_sqrt', False, self.params, exception=False)
+        input_check(kwargs, 'feature_vector', True, self.params, exception=False)
+
+        if consume_kwargs and kwargs:
+            raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
 
     def __lshift__(self, in_imw):
 
         # Apply the transformation to these images
-        out_img = self.apply(in_imw[0].images, in_imw[1].images)
+        if len(in_imw) == 2:
+            # Both HOG and regular images are provided
+            hog_images = in_imw[0].images
+            images = in_imw[1].images
+        else:
+            # Only regular images are provided
+            hog_images = None
+            images = in_imw[-1].images
+
+        # Apply BusBar removal
+        out_img = self.apply(images,  hog_images)
 
         category = in_imw[-1].category
         category += f'\n Busbar removed'
         out_imw = ImageWrapper(out_img, category=category, image_labels=copy.deepcopy(in_imw[-1].image_labels))
 
         return in_imw[-1], out_imw
+
+    def do_hog(self, in_imgs):
+        # Adaptive histogram Equalization of images
+        imgs_exposure = Exposure('adaptive').apply(in_imgs)
+
+        # Next perform a hog on the images
+        params = self.params
+        params.update({'num_jobs': self.num_jobs})
+        hog_exposed = HOG(**params).apply(imgs_exposure)
+
+        # Exposure stretch the HOG image and apply the sigmoid
+        hog_stretched = Exposure('stretch').apply(hog_exposed)
+
+        return hog_stretched
 
     def get_hog_mask(self, in_hogs):
         """
@@ -156,16 +213,23 @@ class RemoveBusBars:
 
         return final_hog
 
-    def apply(self, in_hogs, in_imgs, do_debug=False):
+    def apply(self, in_imgs, in_hogs=None, do_debug=False):
         """
         """
+
+        # If HOG images are not provided then do HOG
+        if in_hogs is None:
+            in_hogs = self.do_hog(in_imgs)
 
         # Create the HOG to apply to the images
         final_hog = self.get_hog_mask(in_hogs)
 
         # Now shake the images
-        out_imgs = (1 - final_hog) * in_imgs + final_hog * (
-                    np.roll(in_imgs, shift=10, axis=-2) + np.roll(in_imgs, shift=-10, axis=-2)) / 2
+        if not self.zero_bars:
+            out_imgs = (1 - final_hog) * in_imgs + final_hog * (
+                        np.roll(in_imgs, shift=10, axis=-2) + np.roll(in_imgs, shift=-10, axis=-2)) / 2
+        else:
+            out_imgs = (1 - final_hog) * in_imgs
 
         if do_debug:
             Show(num_images=10, seed=1234).show((final_hog, in_imgs, out_imgs))
