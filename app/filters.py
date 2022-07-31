@@ -811,12 +811,12 @@ class Farid:
         Applies a Farid filter
         """
         # For loop to apply the function to each img in the image array
-        if self.how == 'default':
-            out_list = [sk_farid(x, **self.params) for x in in_imgs]
-        elif selfhow == 'horizontal':
-            out_list = [sk_farid_h(x, **self.params) for x in in_imgs]
-        elif selfhow == 'vertical':
-            out_list = [sk_farid_v(x, **self.params) for x in in_imgs]
+        if self.params['how'] == 'default':
+            out_list = [sk_farid(x) for x in in_imgs]
+        elif self.params['how'] == 'horizontal':
+            out_list = [sk_farid_h(x) for x in in_imgs]
+        elif self.params['how'] == 'vertical':
+            out_list = [sk_farid_v(x) for x in in_imgs]
             
         out_imgs = np.stack(out_list, axis=0)
 
