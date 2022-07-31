@@ -784,7 +784,7 @@ M0440C002000.jpg,781,train,/images/train/M0440C002000.jpg,True
 M0440C003000.jpg,782,train,/images/train/M0440C003000.jpg,False
 M0440C006000.jpg,783,train,/images/train/M0440C006000.jpg,True
 M0440C008000.jpg,784,train,/images/train/M0440C008000.jpg,True
-M0440C009000.jpg,785,train,/images/train/M0440C009000.jpg,True
+M0440C009000.jpg,785,train,/images/train/M0440C009000.jpg,False
 M0440C010000.jpg,786,train,/images/train/M0440C010000.jpg,True
 M0440C011000.jpg,787,train,/images/train/M0440C011000.jpg,True
 M0440C012000.jpg,788,train,/images/train/M0440C012000.jpg,True
@@ -1284,7 +1284,7 @@ M0451C036100.jpg,1281,train,/images/train/M0451C036100.jpg,True
 M0451C037100.jpg,1282,train,/images/train/M0451C037100.jpg,True
 M0451C042100.jpg,1283,train,/images/train/M0451C042100.jpg,True
 M0451C045100.jpg,1284,train,/images/train/M0451C045100.jpg,True
-M0451C046100.jpg,1285,train,/images/train/M0451C046100.jpg,True
+M0451C046100.jpg,1285,train,/images/train/M0451C046100.jpg,False
 M0451C047100.jpg,1286,train,/images/train/M0451C047100.jpg,True
 M0451C049100.jpg,1287,train,/images/train/M0451C049100.jpg,True
 M0451C050100.jpg,1288,train,/images/train/M0451C050100.jpg,True
@@ -1460,7 +1460,7 @@ M0467C033000.jpg,148,train,/images/train/M0467C033000.jpg,True
 M0467C035000.jpg,149,train,/images/train/M0467C035000.jpg,True
 M0467C037000.jpg,150,test,/images/test/M0467C037000.jpg,True
 M0467C038000.jpg,151,train,/images/train/M0467C038000.jpg,True
-M0467C039000.jpg,152,train,/images/train/M0467C039000.jpg,True
+M0467C039000.jpg,152,train,/images/train/M0467C039000.jpg,False
 M0467C051000.jpg,153,train,/images/train/M0467C051000.jpg,True
 M0467C052000.jpg,154,test,/images/test/M0467C052000.jpg,True
 M0468C001000.jpg,155,train,/images/train/M0468C001000.jpg,True
@@ -1519,7 +1519,7 @@ M0470C030000.jpg,207,test,/images/test/M0470C030000.jpg,True
 M0470C032000.jpg,208,train,/images/train/M0470C032000.jpg,True
 M0470C033000.jpg,209,train,/images/train/M0470C033000.jpg,True
 M0470C037000.jpg,210,train,/images/train/M0470C037000.jpg,True
-M0470C039000.jpg,211,train,/images/train/M0470C039000.jpg,True
+M0470C039000.jpg,211,train,/images/train/M0470C039000.jpg,False
 M0470C044000.jpg,212,train,/images/train/M0470C044000.jpg,True
 M0470C048000.jpg,213,train,/images/train/M0470C048000.jpg,True
 M0470C049000.jpg,214,train,/images/train/M0470C049000.jpg,True
@@ -1876,7 +1876,7 @@ M0571C055000.jpg,564,train,/images/train/M0571C055000.jpg,True
 M0571C057000.jpg,565,train,/images/train/M0571C057000.jpg,True
 M0571C059000.jpg,566,train,/images/train/M0571C059000.jpg,True
 M0572C006000.jpg,567,train,/images/train/M0572C006000.jpg,True
-M0572C008000.jpg,568,train,/images/train/M0572C008000.jpg,True
+M0572C008000.jpg,568,train,/images/train/M0572C008000.jpg,False
 M0572C010000.jpg,569,train,/images/train/M0572C010000.jpg,True
 M0572C013000.jpg,570,train,/images/train/M0572C013000.jpg,True
 M0572C024000.jpg,571,train,/images/train/M0572C024000.jpg,True
@@ -1908,7 +1908,7 @@ M0573C035000.jpg,596,train,/images/train/M0573C035000.jpg,True
 M0573C042000.jpg,597,train,/images/train/M0573C042000.jpg,True
 M0573C044000.jpg,598,test,/images/test/M0573C044000.jpg,True
 M0573C046000.jpg,599,train,/images/train/M0573C046000.jpg,True
-M0573C048000.jpg,600,train,/images/train/M0573C048000.jpg,True
+M0573C048000.jpg,600,train,/images/train/M0573C048000.jpg,False
 M0573C050000.jpg,601,train,/images/train/M0573C050000.jpg,True
 M0573C051000.jpg,602,train,/images/train/M0573C051000.jpg,True
 M0573C053000.jpg,603,test,/images/test/M0573C053000.jpg,True
@@ -1941,7 +1941,7 @@ M0575C006000.jpg,629,train,/images/train/M0575C006000.jpg,True
 M0575C008000.jpg,630,train,/images/train/M0575C008000.jpg,True
 M0575C010000.jpg,631,test,/images/test/M0575C010000.jpg,True
 M0575C011000.jpg,632,test,/images/test/M0575C011000.jpg,True
-M0575C013000.jpg,633,train,/images/train/M0575C013000.jpg,True
+M0575C013000.jpg,633,train,/images/train/M0575C013000.jpg,False
 M0575C015000.jpg,634,train,/images/train/M0575C015000.jpg,True
 M0575C017000.jpg,635,train,/images/train/M0575C017000.jpg,True
 M0575C019000.jpg,636,test,/images/test/M0575C019000.jpg,True
@@ -1993,7 +1993,7 @@ M0577C019000.jpg,681,train,/images/train/M0577C019000.jpg,True
 M0577C024000.jpg,682,train,/images/train/M0577C024000.jpg,False
 M0577C026000.jpg,683,train,/images/train/M0577C026000.jpg,True
 M0577C051000.jpg,684,train,/images/train/M0577C051000.jpg,True
-M0577C053000.jpg,685,train,/images/train/M0577C053000.jpg,True
+M0577C053000.jpg,685,train,/images/train/M0577C053000.jpg,False
 M0577C055000.jpg,686,train,/images/train/M0577C055000.jpg,True
 M0577C057000.jpg,687,train,/images/train/M0577C057000.jpg,True
 M0577C059000.jpg,688,train,/images/train/M0577C059000.jpg,True
@@ -2033,8 +2033,8 @@ M0580C011100.jpg,721,train,/images/train/M0580C011100.jpg,True
 M0580C013100.jpg,722,train,/images/train/M0580C013100.jpg,True
 M0580C014100.jpg,723,test,/images/test/M0580C014100.jpg,True
 M0580C015100.jpg,724,train,/images/train/M0580C015100.jpg,True
-M0580C025100.jpg,725,train,/images/train/M0580C025100.jpg,True
-M0580C026100.jpg,726,train,/images/train/M0580C026100.jpg,True
+M0580C025100.jpg,725,train,/images/train/M0580C025100.jpg,False
+M0580C026100.jpg,726,train,/images/train/M0580C026100.jpg,False
 M0580C032100.jpg,727,train,/images/train/M0580C032100.jpg,False
 M0580C034100.jpg,728,train,/images/train/M0580C034100.jpg,True
 M0580C039100.jpg,729,test,/images/test/M0580C039100.jpg,True
@@ -2060,7 +2060,7 @@ M0581C039100.jpg,748,train,/images/train/M0581C039100.jpg,True
 M0581C040100.jpg,749,train,/images/train/M0581C040100.jpg,True
 M0581C041100.jpg,750,train,/images/train/M0581C041100.jpg,True
 M0581C045100.jpg,751,train,/images/train/M0581C045100.jpg,True
-M0581C046100.jpg,752,train,/images/train/M0581C046100.jpg,True
+M0581C046100.jpg,752,train,/images/train/M0581C046100.jpg,False
 M0581C048100.jpg,753,train,/images/train/M0581C048100.jpg,True
 M0581C050100.jpg,754,train,/images/train/M0581C050100.jpg,True
 M0581C053100.jpg,755,test,/images/test/M0581C053100.jpg,True
@@ -2592,7 +2592,7 @@ M0616C028000.jpg,1280,train,/images/train/M0616C028000.jpg,True
 M0616C031000.jpg,1281,train,/images/train/M0616C031000.jpg,True
 M0616C039000.jpg,1282,train,/images/train/M0616C039000.jpg,True
 M0616C050000.jpg,1283,train,/images/train/M0616C050000.jpg,True
-M0617C016000.jpg,1284,train,/images/train/M0617C016000.jpg,True
+M0617C016000.jpg,1284,train,/images/train/M0617C016000.jpg,False
 M0617C023000.jpg,1285,train,/images/train/M0617C023000.jpg,True
 M0618C031000.jpg,1286,train,/images/train/M0618C031000.jpg,True
 M0619C002000.jpg,1287,train,/images/train/M0619C002000.jpg,True
@@ -2624,7 +2624,7 @@ Bent+120C_relax 0Pa TestName_20201223_133015.673_output_20201228_123246_C050.jpg
 Control 0Pa TestName_20201207_141716.316_output_20201228_123306_altered_C006.jpg,4,train,/images/train/Control 0Pa TestName_20201207_141716.316_output_20201228_123306_altered_C006.jpg,True
 Control 0Pa TestName_20201207_141716.316_output_20201228_123306_altered_C010.jpg,5,train,/images/train/Control 0Pa TestName_20201207_141716.316_output_20201228_123306_altered_C010.jpg,True
 Control 0Pa TestName_20201207_141716.316_output_20201228_123306_altered_C012.jpg,6,train,/images/train/Control 0Pa TestName_20201207_141716.316_output_20201228_123306_altered_C012.jpg,True
-Control 0Pa TestName_20201207_141716.316_output_20201228_123306_altered_C047.jpg,7,train,/images/train/Control 0Pa TestName_20201207_141716.316_output_20201228_123306_altered_C047.jpg,True
+Control 0Pa TestName_20201207_141716.316_output_20201228_123306_altered_C047.jpg,7,train,/images/train/Control 0Pa TestName_20201207_141716.316_output_20201228_123306_altered_C047.jpg,False
 Flat cure-oven 0Pa TestName_20201223_135915.494_C003.jpg,8,train,/images/train/Flat cure-oven 0Pa TestName_20201223_135915.494_C003.jpg,True
 Flat cure-oven 0Pa TestName_20201223_135915.494_C007.jpg,9,test,/images/test/Flat cure-oven 0Pa TestName_20201223_135915.494_C007.jpg,True
 M0005C028010.jpg,10,train,/images/train/M0005C028010.jpg,True
@@ -2692,7 +2692,7 @@ M0296C025000.jpg,71,train,/images/train/M0296C025000.jpg,False
 M0296C026000.jpg,72,test,/images/test/M0296C026000.jpg,False
 M0296C027000.jpg,73,train,/images/train/M0296C027000.jpg,False
 M0296C028000.jpg,74,train,/images/train/M0296C028000.jpg,False
-M0296C029000.jpg,75,train,/images/train/M0296C029000.jpg,True
+M0296C029000.jpg,75,train,/images/train/M0296C029000.jpg,False
 M0296C030000.jpg,76,test,/images/test/M0296C030000.jpg,True
 M0296C031000.jpg,77,train,/images/train/M0296C031000.jpg,True
 M0296C032000.jpg,78,train,/images/train/M0296C032000.jpg,True
@@ -2715,10 +2715,10 @@ M0296C048000.jpg,94,test,/images/test/M0296C048000.jpg,True
 M0296C049000.jpg,95,train,/images/train/M0296C049000.jpg,True
 M0296C050000.jpg,96,train,/images/train/M0296C050000.jpg,True
 M0296C051000.jpg,97,train,/images/train/M0296C051000.jpg,False
-M0296C052000.jpg,98,train,/images/train/M0296C052000.jpg,True
+M0296C052000.jpg,98,train,/images/train/M0296C052000.jpg,False
 M0296C053000.jpg,99,train,/images/train/M0296C053000.jpg,True
 M0296C054000.jpg,100,train,/images/train/M0296C054000.jpg,True
-M0296C055000.jpg,101,train,/images/train/M0296C055000.jpg,True
+M0296C055000.jpg,101,train,/images/train/M0296C055000.jpg,False
 M0296C056000.jpg,102,test,/images/test/M0296C056000.jpg,False
 M0296C057000.jpg,103,train,/images/train/M0296C057000.jpg,False
 M0296C058000.jpg,104,train,/images/train/M0296C058000.jpg,False
@@ -2735,9 +2735,9 @@ M0300C008100.jpg,114,train,/images/train/M0300C008100.jpg,False
 M0300C009100.jpg,115,train,/images/train/M0300C009100.jpg,True
 M0300C010100.jpg,116,train,/images/train/M0300C010100.jpg,True
 M0300C011100.jpg,117,train,/images/train/M0300C011100.jpg,True
-M0300C012100.jpg,118,train,/images/train/M0300C012100.jpg,True
-M0300C013100.jpg,119,train,/images/train/M0300C013100.jpg,True
-M0300C014100.jpg,120,train,/images/train/M0300C014100.jpg,True
+M0300C012100.jpg,118,train,/images/train/M0300C012100.jpg,False
+M0300C013100.jpg,119,train,/images/train/M0300C013100.jpg,False
+M0300C014100.jpg,120,train,/images/train/M0300C014100.jpg,False
 M0300C015100.jpg,121,train,/images/train/M0300C015100.jpg,False
 M0300C016100.jpg,122,test,/images/test/M0300C016100.jpg,True
 M0300C017100.jpg,123,train,/images/train/M0300C017100.jpg,False
@@ -2753,8 +2753,8 @@ M0300C027100.jpg,132,test,/images/test/M0300C027100.jpg,True
 M0300C028100.jpg,133,train,/images/train/M0300C028100.jpg,False
 M0300C029100.jpg,134,train,/images/train/M0300C029100.jpg,True
 M0300C030100.jpg,135,train,/images/train/M0300C030100.jpg,True
-M0300C031100.jpg,136,train,/images/train/M0300C031100.jpg,True
-M0300C032100.jpg,137,train,/images/train/M0300C032100.jpg,True
+M0300C031100.jpg,136,train,/images/train/M0300C031100.jpg,False
+M0300C032100.jpg,137,train,/images/train/M0300C032100.jpg,False
 M0300C033100.jpg,138,train,/images/train/M0300C033100.jpg,False
 M0300C034100.jpg,139,test,/images/test/M0300C034100.jpg,True
 M0300C035100.jpg,140,test,/images/test/M0300C035100.jpg,False
@@ -2780,7 +2780,7 @@ M0300C054100.jpg,159,test,/images/test/M0300C054100.jpg,True
 M0300C055100.jpg,160,train,/images/train/M0300C055100.jpg,True
 M0300C056100.jpg,161,train,/images/train/M0300C056100.jpg,True
 M0300C057100.jpg,162,train,/images/train/M0300C057100.jpg,True
-M0300C058100.jpg,163,train,/images/train/M0300C058100.jpg,True
+M0300C058100.jpg,163,train,/images/train/M0300C058100.jpg,False
 M0300C059100.jpg,164,train,/images/train/M0300C059100.jpg,True
 M0300C060100.jpg,165,train,/images/train/M0300C060100.jpg,True
 M0301C001100.jpg,166,test,/images/test/M0301C001100.jpg,True
@@ -2840,17 +2840,17 @@ M0301C055100.jpg,219,test,/images/test/M0301C055100.jpg,False
 M0301C056100.jpg,220,train,/images/train/M0301C056100.jpg,False
 M0301C057100.jpg,221,train,/images/train/M0301C057100.jpg,False
 M0301C058100.jpg,222,train,/images/train/M0301C058100.jpg,False
-M0301C059100.jpg,223,train,/images/train/M0301C059100.jpg,True
+M0301C059100.jpg,223,train,/images/train/M0301C059100.jpg,False
 M0301C060100.jpg,224,train,/images/train/M0301C060100.jpg,True
 M0302C001100.jpg,225,train,/images/train/M0302C001100.jpg,True
 M0302C002100.jpg,226,train,/images/train/M0302C002100.jpg,False
 M0302C003100.jpg,227,train,/images/train/M0302C003100.jpg,False
 M0302C004100.jpg,228,train,/images/train/M0302C004100.jpg,False
-M0302C005100.jpg,229,train,/images/train/M0302C005100.jpg,True
+M0302C005100.jpg,229,train,/images/train/M0302C005100.jpg,False
 M0302C006100.jpg,230,train,/images/train/M0302C006100.jpg,False
-M0302C007100.jpg,231,train,/images/train/M0302C007100.jpg,True
+M0302C007100.jpg,231,train,/images/train/M0302C007100.jpg,False
 M0302C008100.jpg,232,train,/images/train/M0302C008100.jpg,False
-M0302C009100.jpg,233,train,/images/train/M0302C009100.jpg,True
+M0302C009100.jpg,233,train,/images/train/M0302C009100.jpg,False
 M0302C010100.jpg,234,train,/images/train/M0302C010100.jpg,False
 M0302C011100.jpg,235,train,/images/train/M0302C011100.jpg,False
 M0302C012100.jpg,236,train,/images/train/M0302C012100.jpg,True
@@ -2890,7 +2890,7 @@ M0302C045100.jpg,269,train,/images/train/M0302C045100.jpg,True
 M0302C046100.jpg,270,train,/images/train/M0302C046100.jpg,False
 M0302C047100.jpg,271,train,/images/train/M0302C047100.jpg,True
 M0302C048100.jpg,272,train,/images/train/M0302C048100.jpg,False
-M0302C049100.jpg,273,train,/images/train/M0302C049100.jpg,True
+M0302C049100.jpg,273,train,/images/train/M0302C049100.jpg,False
 M0302C050100.jpg,274,train,/images/train/M0302C050100.jpg,False
 M0302C051100.jpg,275,train,/images/train/M0302C051100.jpg,False
 M0302C052100.jpg,276,train,/images/train/M0302C052100.jpg,True
@@ -2901,7 +2901,7 @@ M0302C056100.jpg,280,train,/images/train/M0302C056100.jpg,True
 M0302C057100.jpg,281,train,/images/train/M0302C057100.jpg,False
 M0302C058100.jpg,282,train,/images/train/M0302C058100.jpg,True
 M0302C059100.jpg,283,train,/images/train/M0302C059100.jpg,False
-M0302C060100.jpg,284,train,/images/train/M0302C060100.jpg,True
+M0302C060100.jpg,284,train,/images/train/M0302C060100.jpg,False
 M0303C001100.jpg,285,train,/images/train/M0303C001100.jpg,False
 M0303C002100.jpg,286,test,/images/test/M0303C002100.jpg,False
 M0303C003100.jpg,287,train,/images/train/M0303C003100.jpg,False
@@ -3120,7 +3120,7 @@ M0306C038100.jpg,499,train,/images/train/M0306C038100.jpg,True
 M0306C039100.jpg,500,test,/images/test/M0306C039100.jpg,True
 M0306C040100.jpg,501,train,/images/train/M0306C040100.jpg,True
 M0306C041100.jpg,502,test,/images/test/M0306C041100.jpg,True
-M0306C042100.jpg,503,train,/images/train/M0306C042100.jpg,True
+M0306C042100.jpg,503,train,/images/train/M0306C042100.jpg,False
 M0306C043100.jpg,504,train,/images/train/M0306C043100.jpg,True
 M0306C044100.jpg,505,train,/images/train/M0306C044100.jpg,True
 M0306C045100.jpg,506,test,/images/test/M0306C045100.jpg,True
@@ -3135,7 +3135,7 @@ M0306C053100.jpg,514,test,/images/test/M0306C053100.jpg,True
 M0306C054100.jpg,515,train,/images/train/M0306C054100.jpg,True
 M0306C055100.jpg,516,train,/images/train/M0306C055100.jpg,True
 M0306C056100.jpg,517,train,/images/train/M0306C056100.jpg,True
-M0306C057100.jpg,518,train,/images/train/M0306C057100.jpg,True
+M0306C057100.jpg,518,train,/images/train/M0306C057100.jpg,False
 M0306C058100.jpg,519,train,/images/train/M0306C058100.jpg,True
 M0306C059100.jpg,520,test,/images/test/M0306C059100.jpg,True
 M0306C060100.jpg,521,test,/images/test/M0306C060100.jpg,True
@@ -3177,18 +3177,18 @@ M0307C035100.jpg,556,train,/images/train/M0307C035100.jpg,True
 M0307C036100.jpg,557,train,/images/train/M0307C036100.jpg,True
 M0307C037100.jpg,558,test,/images/test/M0307C037100.jpg,True
 M0307C038100.jpg,559,test,/images/test/M0307C038100.jpg,True
-M0307C039100.jpg,560,train,/images/train/M0307C039100.jpg,True
+M0307C039100.jpg,560,train,/images/train/M0307C039100.jpg,False
 M0307C040100.jpg,561,test,/images/test/M0307C040100.jpg,True
 M0307C041100.jpg,562,train,/images/train/M0307C041100.jpg,True
-M0307C042100.jpg,563,train,/images/train/M0307C042100.jpg,True
-M0307C043100.jpg,564,train,/images/train/M0307C043100.jpg,True
+M0307C042100.jpg,563,train,/images/train/M0307C042100.jpg,False
+M0307C043100.jpg,564,train,/images/train/M0307C043100.jpg,False
 M0307C044100.jpg,565,train,/images/train/M0307C044100.jpg,False
 M0307C045100.jpg,566,train,/images/train/M0307C045100.jpg,False
 M0307C046100.jpg,567,test,/images/test/M0307C046100.jpg,True
 M0307C047100.jpg,568,train,/images/train/M0307C047100.jpg,True
 M0307C048100.jpg,569,train,/images/train/M0307C048100.jpg,False
 M0307C049100.jpg,570,train,/images/train/M0307C049100.jpg,True
-M0307C050100.jpg,571,train,/images/train/M0307C050100.jpg,True
+M0307C050100.jpg,571,train,/images/train/M0307C050100.jpg,False
 M0307C051100.jpg,572,train,/images/train/M0307C051100.jpg,True
 M0307C052100.jpg,573,train,/images/train/M0307C052100.jpg,True
 M0307C053100.jpg,574,train,/images/train/M0307C053100.jpg,True
@@ -3355,7 +3355,7 @@ M0310C035100.jpg,734,test,/images/test/M0310C035100.jpg,True
 M0310C036100.jpg,735,test,/images/test/M0310C036100.jpg,True
 M0310C037100.jpg,736,train,/images/train/M0310C037100.jpg,True
 M0310C038100.jpg,737,train,/images/train/M0310C038100.jpg,True
-M0310C039100.jpg,738,train,/images/train/M0310C039100.jpg,True
+M0310C039100.jpg,738,train,/images/train/M0310C039100.jpg,False
 M0310C040100.jpg,739,test,/images/test/M0310C040100.jpg,True
 M0310C041100.jpg,740,train,/images/train/M0310C041100.jpg,True
 M0310C042100.jpg,741,train,/images/train/M0310C042100.jpg,True
@@ -3366,9 +3366,9 @@ M0310C046100.jpg,745,test,/images/test/M0310C046100.jpg,True
 M0310C047100.jpg,746,test,/images/test/M0310C047100.jpg,True
 M0310C048100.jpg,747,train,/images/train/M0310C048100.jpg,True
 M0310C049100.jpg,748,train,/images/train/M0310C049100.jpg,True
-M0310C050100.jpg,749,train,/images/train/M0310C050100.jpg,True
+M0310C050100.jpg,749,train,/images/train/M0310C050100.jpg,False
 M0310C051100.jpg,750,test,/images/test/M0310C051100.jpg,True
-M0310C052100.jpg,751,train,/images/train/M0310C052100.jpg,True
+M0310C052100.jpg,751,train,/images/train/M0310C052100.jpg,False
 M0310C053100.jpg,752,train,/images/train/M0310C053100.jpg,True
 M0310C054100.jpg,753,train,/images/train/M0310C054100.jpg,True
 M0310C055100.jpg,754,test,/images/test/M0310C055100.jpg,True
@@ -3983,7 +3983,7 @@ M0621C046000.jpg,53,train,/images/train/M0621C046000.jpg,True
 M0621C047000.jpg,54,train,/images/train/M0621C047000.jpg,True
 M0621C048000.jpg,55,train,/images/train/M0621C048000.jpg,True
 M0621C049000.jpg,56,train,/images/train/M0621C049000.jpg,True
-M0621C050000.jpg,57,train,/images/train/M0621C050000.jpg,True
+M0621C050000.jpg,57,train,/images/train/M0621C050000.jpg,False
 M0621C051000.jpg,58,train,/images/train/M0621C051000.jpg,True
 M0621C052000.jpg,59,train,/images/train/M0621C052000.jpg,True
 M0621C055000.jpg,60,train,/images/train/M0621C055000.jpg,True
@@ -3995,7 +3995,7 @@ M0622C002010.jpg,65,train,/images/train/M0622C002010.jpg,True
 M0622C005010.jpg,66,train,/images/train/M0622C005010.jpg,True
 M0622C014010.jpg,67,train,/images/train/M0622C014010.jpg,True
 M0622C016010.jpg,68,train,/images/train/M0622C016010.jpg,True
-M0622C017010.jpg,69,train,/images/train/M0622C017010.jpg,True
+M0622C017010.jpg,69,train,/images/train/M0622C017010.jpg,False
 M0622C019010.jpg,70,train,/images/train/M0622C019010.jpg,True
 M0622C020010.jpg,71,test,/images/test/M0622C020010.jpg,True
 M0622C021010.jpg,72,train,/images/train/M0622C021010.jpg,True
@@ -4016,8 +4016,8 @@ M0623C005010.jpg,86,train,/images/train/M0623C005010.jpg,True
 M0623C009010.jpg,87,train,/images/train/M0623C009010.jpg,True
 M0623C021010.jpg,88,train,/images/train/M0623C021010.jpg,True
 M0623C028010.jpg,89,train,/images/train/M0623C028010.jpg,True
-M0623C029010.jpg,90,train,/images/train/M0623C029010.jpg,True
-M0623C030010.jpg,91,train,/images/train/M0623C030010.jpg,True
+M0623C029010.jpg,90,train,/images/train/M0623C029010.jpg,False
+M0623C030010.jpg,91,train,/images/train/M0623C030010.jpg,False
 M0623C031010.jpg,92,test,/images/test/M0623C031010.jpg,True
 M0623C032010.jpg,93,test,/images/test/M0623C032010.jpg,True
 M0623C033010.jpg,94,test,/images/test/M0623C033010.jpg,True
@@ -4220,7 +4220,7 @@ M0704C062000.jpg,290,train,/images/train/M0704C062000.jpg,True
 M0707C001000.jpg,291,train,/images/train/M0707C001000.jpg,True
 M0707C002000.jpg,292,train,/images/train/M0707C002000.jpg,True
 M0707C003000.jpg,293,train,/images/train/M0707C003000.jpg,True
-M0707C006000.jpg,294,train,/images/train/M0707C006000.jpg,True
+M0707C006000.jpg,294,train,/images/train/M0707C006000.jpg,False
 M0707C007000.jpg,295,test,/images/test/M0707C007000.jpg,True
 M0707C008000.jpg,296,train,/images/train/M0707C008000.jpg,True
 M0707C009000.jpg,297,test,/images/test/M0707C009000.jpg,True
@@ -4761,7 +4761,7 @@ M0820C059100.jpg,831,train,/images/train/M0820C059100.jpg,True
 M0821C041000.jpg,832,test,/images/test/M0821C041000.jpg,True
 M0821C042000.jpg,833,train,/images/train/M0821C042000.jpg,True
 M0821C043000.jpg,834,test,/images/test/M0821C043000.jpg,True
-M0821C044000.jpg,835,train,/images/train/M0821C044000.jpg,True
+M0821C044000.jpg,835,train,/images/train/M0821C044000.jpg,False
 M0821C045000.jpg,836,train,/images/train/M0821C045000.jpg,True
 M0821C046000.jpg,837,train,/images/train/M0821C046000.jpg,True
 M0821C047000.jpg,838,train,/images/train/M0821C047000.jpg,False
@@ -4804,7 +4804,7 @@ M0824C010000.jpg,874,test,/images/test/M0824C010000.jpg,False
 M0824C010000.jpg,875,test,/images/test/M0824C010000.jpg,False
 M0824C040000.jpg,876,train,/images/train/M0824C040000.jpg,False
 M0830C009000.jpg,877,train,/images/train/M0830C009000.jpg,True
-M0830C010000.jpg,878,train,/images/train/M0830C010000.jpg,True
+M0830C010000.jpg,878,train,/images/train/M0830C010000.jpg,False
 M0830C021000.jpg,879,train,/images/train/M0830C021000.jpg,True
 M0830C027000.jpg,880,train,/images/train/M0830C027000.jpg,True
 M0833C024000.jpg,881,train,/images/train/M0833C024000.jpg,False
@@ -4829,7 +4829,7 @@ M0839C021000.jpg,899,test,/images/test/M0839C021000.jpg,True
 M0839C024000.jpg,900,train,/images/train/M0839C024000.jpg,True
 M0839C026000.jpg,901,test,/images/test/M0839C026000.jpg,True
 M0839C027000.jpg,902,train,/images/train/M0839C027000.jpg,True
-M0839C028000.jpg,903,train,/images/train/M0839C028000.jpg,True
+M0839C028000.jpg,903,train,/images/train/M0839C028000.jpg,False
 M0839C030000.jpg,904,test,/images/test/M0839C030000.jpg,True
 M0841C004000.jpg,905,train,/images/train/M0841C004000.jpg,True
 M0841C007000.jpg,906,test,/images/test/M0841C007000.jpg,True
@@ -4946,8 +4946,8 @@ M0869C005100.jpg,1016,train,/images/train/M0869C005100.jpg,True
 M0869C009100.jpg,1017,train,/images/train/M0869C009100.jpg,True
 M0869C010100.jpg,1018,train,/images/train/M0869C010100.jpg,True
 M0869C018100.jpg,1019,test,/images/test/M0869C018100.jpg,True
-M0869C020100.jpg,1020,train,/images/train/M0869C020100.jpg,True
-M0869C021100.jpg,1021,train,/images/train/M0869C021100.jpg,True
+M0869C020100.jpg,1020,train,/images/train/M0869C020100.jpg,False
+M0869C021100.jpg,1021,train,/images/train/M0869C021100.jpg,False
 M0869C031100.jpg,1022,train,/images/train/M0869C031100.jpg,True
 M0869C033100.jpg,1023,train,/images/train/M0869C033100.jpg,True
 M0869C034100.jpg,1024,train,/images/train/M0869C034100.jpg,True
@@ -5008,7 +5008,7 @@ M0874C027100.jpg,1078,train,/images/train/M0874C027100.jpg,True
 M0874C029100.jpg,1079,train,/images/train/M0874C029100.jpg,True
 M0874C030100.jpg,1080,train,/images/train/M0874C030100.jpg,True
 M0874C031100.jpg,1081,train,/images/train/M0874C031100.jpg,True
-M0874C032100.jpg,1082,train,/images/train/M0874C032100.jpg,True
+M0874C032100.jpg,1082,train,/images/train/M0874C032100.jpg,False
 M0874C033100.jpg,1083,train,/images/train/M0874C033100.jpg,True
 M0874C034100.jpg,1084,train,/images/train/M0874C034100.jpg,True
 M0874C037100.jpg,1085,train,/images/train/M0874C037100.jpg,True
@@ -5073,7 +5073,7 @@ M0879C006000.jpg,1143,train,/images/train/M0879C006000.jpg,True
 M0879C007000.jpg,1144,test,/images/test/M0879C007000.jpg,True
 M0879C008000.jpg,1145,test,/images/test/M0879C008000.jpg,True
 M0879C010000.jpg,1146,train,/images/train/M0879C010000.jpg,True
-M0879C012000.jpg,1147,train,/images/train/M0879C012000.jpg,True
+M0879C012000.jpg,1147,train,/images/train/M0879C012000.jpg,False
 M0879C015000.jpg,1148,train,/images/train/M0879C015000.jpg,False
 M0879C017000.jpg,1149,test,/images/test/M0879C017000.jpg,True
 M0879C019000.jpg,1150,train,/images/train/M0879C019000.jpg,True
@@ -5133,7 +5133,7 @@ M0905C051100.jpg,1203,train,/images/train/M0905C051100.jpg,True
 M0905C052100.jpg,1204,train,/images/train/M0905C052100.jpg,True
 M0905C053100.jpg,1205,test,/images/test/M0905C053100.jpg,True
 M0905C054100.jpg,1206,train,/images/train/M0905C054100.jpg,True
-M0905C055100.jpg,1207,train,/images/train/M0905C055100.jpg,True
+M0905C055100.jpg,1207,train,/images/train/M0905C055100.jpg,False
 M0905C056100.jpg,1208,train,/images/train/M0905C056100.jpg,True
 M0905C057100.jpg,1209,train,/images/train/M0905C057100.jpg,True
 M0905C058100.jpg,1210,train,/images/train/M0905C058100.jpg,True
@@ -5181,8 +5181,8 @@ M0907C015100.jpg,1251,train,/images/train/M0907C015100.jpg,True
 M0907C015100.jpg,1252,train,/images/train/M0907C015100.jpg,True
 M0907C018100.jpg,1253,train,/images/train/M0907C018100.jpg,True
 M0907C018100.jpg,1254,train,/images/train/M0907C018100.jpg,True
-M0907C020100.jpg,1255,train,/images/train/M0907C020100.jpg,True
-M0907C020100.jpg,1256,train,/images/train/M0907C020100.jpg,True
+M0907C020100.jpg,1255,train,/images/train/M0907C020100.jpg,False
+M0907C020100.jpg,1256,train,/images/train/M0907C020100.jpg,False
 M0907C021100.jpg,1257,train,/images/train/M0907C021100.jpg,True
 M0907C021100.jpg,1258,train,/images/train/M0907C021100.jpg,True
 M0907C022100.jpg,1259,test,/images/test/M0907C022100.jpg,True
@@ -5209,7 +5209,7 @@ M0907C037100.jpg,1279,train,/images/train/M0907C037100.jpg,True
 M0907C038100.jpg,1280,train,/images/train/M0907C038100.jpg,True
 M0907C039100.jpg,1281,train,/images/train/M0907C039100.jpg,True
 M0907C040100.jpg,1282,train,/images/train/M0907C040100.jpg,True
-M0907C041100.jpg,1283,train,/images/train/M0907C041100.jpg,True
+M0907C041100.jpg,1283,train,/images/train/M0907C041100.jpg,False
 M0907C043100.jpg,1284,train,/images/train/M0907C043100.jpg,True
 M0907C044100.jpg,1285,train,/images/train/M0907C044100.jpg,True
 M0907C045100.jpg,1286,train,/images/train/M0907C045100.jpg,True
