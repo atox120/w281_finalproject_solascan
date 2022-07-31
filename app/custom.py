@@ -127,9 +127,10 @@ class RemoveBusBars:
         if 'zero_bars' in kwargs:
             self.zero_bars = kwargs['zero_bars']
             del kwargs['zero_bars']
-
         else:
             self.zero_bars = False
+
+        if 'keep_bars' in kwargs:
             self.keep_bars = kwargs['keep_bars']
             del kwargs['keep_bars']
         else:
