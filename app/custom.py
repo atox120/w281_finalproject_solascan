@@ -1,8 +1,11 @@
 import copy
 import numpy as np
+
+from scipy.signal import find_peaks, gaussian
+
 from app.imager import Show, Exposure
-from app.utils import ImageWrapper, input_check
-from app.filters import HOG, Convolve, CreateKernel
+from app.utils import ImageWrapper, input_check, line_split_string
+from app.filters import HOG, Convolve, CreateKernel, Farid
 
 
 class Orient:
@@ -40,7 +43,6 @@ class Orient:
         :param filt_hogs:
         :param in_hogs:
         :param in_imgs:
-
         """
 
         # Find the gradients in the x-direction
@@ -125,8 +127,13 @@ class RemoveBusBars:
         if 'zero_bars' in kwargs:
             self.zero_bars = kwargs['zero_bars']
             del kwargs['zero_bars']
+
         else:
             self.zero_bars = False
+            self.keep_bars = kwargs['keep_bars']
+            del kwargs['keep_bars']
+        else:
+            self.keep_bars = False
 
         self.params = {}
         input_check(kwargs, 'pixels_per_cell', (3, 3), self.params, exception=False)
@@ -175,9 +182,7 @@ class RemoveBusBars:
 
     def get_hog_mask(self, in_hogs):
         """
-
         :param in_hogs:
-
         """
 
         # Exposure stretch the HOG image and apply the sigmoid
@@ -229,14 +234,179 @@ class RemoveBusBars:
             out_imgs = (1 - final_hog) * in_imgs + final_hog * (
                         np.roll(in_imgs, shift=10, axis=-2) + np.roll(in_imgs, shift=-10, axis=-2)) / 2
         else:
-            out_imgs = (1 - final_hog) * in_imgs
+            if self.keep_bars:
+                out_imgs = final_hog * in_imgs
+            else:
+                out_imgs = (1 - final_hog) * in_imgs
 
         if do_debug:
             Show(num_images=10, seed=1234).show((final_hog, in_imgs, out_imgs))
 
         return out_imgs
 
+class BusbarMask:
+        
+    def __init__(self, consume_kwargs=True, **kwargs):
+        """
+        Creates a mask for the busbars, along the full width of the image
+        
+        :param edge_buffer: set these top and bottom pixels zero - ignore any features here. 
+        :param min_spacing: min spacing between busbars
+        :param blur_width: the width of the blurring kernel on the farid filtered signal
+        :param broadening: the width around the estimated centre of the busbar which is broadened
+        """
 
+        if 'edge_buffer' in kwargs:
+            self.edge_buffer = kwargs['edge_buffer']
+            del kwargs['edge_buffer']
+        else:
+            self.edge_buffer = 15
+
+        if 'min_spacing' in kwargs:
+            self.min_spacing = kwargs['min_spacing']
+            del kwargs['min_spacing']
+        else:
+            self.min_spacing = 30
+
+        if 'blur_width' in kwargs:
+            self.blur_width = kwargs['blur_width']
+            del kwargs['blur_width']
+        else:
+            self.blur_width = 5
+            
+        if 'blur_sigma' in kwargs:
+            self.blur_sigma = kwargs['blur_sigma']
+            del kwargs['blur_sigma']
+        else:
+            self.blur_sigma = 1.5
+
+        if 'broadening' in kwargs:
+            self.broadening = kwargs['broadening']
+            del kwargs['broadening']
+        else:
+            self.broadening = 3
+            
+        self.params = {}
+        self.debug=False
+
+        if consume_kwargs and kwargs:
+            raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
+        
+    def __lshift__(self, in_imw):
+
+        if isinstance(in_imw, tuple):
+            transformed = in_imw[-1]
+            in_imw = in_imw[0]
+
+        out_img = (1 - self.apply(in_imw.images)) * transformed.images
+
+        # If it is the output of a different function then take the last value in the tuple
+        category = f'\n Busbar Masked'
+        if self.params:
+            category += f' and params: {self.params}'
+        category = in_imw.category + line_split_string(category)
+
+        out_imw = ImageWrapper(out_img, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        return in_imw, out_imw
+    
+    def apply(self, in_imgs):
+        """
+        Wrapper to apply function, standardises syntax. 
+        Also a means to access the mask directly.
+        """
+        masks = self.get_mask(in_imgs)
+
+        return masks
+
+    def get_mask(self, in_imgs):
+    
+        # Apply Farid Horizontal filter to find gradient
+        filter_imgs = Farid(how='horizontal').apply(in_imgs)
+        row_signal = filter_imgs.sum(axis=-1).astype(int) ** 2
+
+        # Find centre points of busbars
+        filtered_imgs, found_peaks = self.filter_1D(row_signal)
+
+        # Now we need to create the mask broadened around the peak
+        n = filtered_imgs.shape[1] #Length of the vector
+        indx_list = []
+        for i in range(filtered_imgs.shape[0]):
+            #Broaden the peaks
+            broadened_vec = self.broaden_peak(found_peaks[i], self.broadening)
+            # 1 hot encoding of busbar positions
+            indx = np.zeros(n)
+            indx[broadened_vec] = 1
+            indx_list.append(indx)
+        # Stack back together
+        peak_vec = np.stack(indx_list, axis=0)
+
+        # Create mask by stretching out the mask to fill out the columns
+        mask = np.repeat(peak_vec[:,:,np.newaxis], peak_vec.shape[1], axis=2)
+
+        if self.debug:
+            return mask, peak_vec, filtered_imgs, found_peaks, row_signal
+        else:
+            return mask
+
+
+    def filter_1D(self, signal):
+        """
+        Filters a 1D signal by:
+        - cleaning an edge buffer to zero.
+        - blurring the 1D signal to merge peaks
+        """
+    
+        if self.edge_buffer > 0:
+            #Fitler top and bottom
+            signal[:, 0:self.edge_buffer] = 0
+            signal[:,-self.edge_buffer:] = 0
+
+        #Convolve to blur peak
+        kernel = self.create_1d_gaussian(self.blur_width, self.blur_sigma)
+        out_list=[]
+        for sig in signal:
+            convolved = np.convolve(sig, kernel, mode='same')
+            out_list.append(convolved)
+        convolved_signals = np.stack(out_list, axis=0)
+
+        peaks = []
+        # Find the peaks
+        for sig in convolved_signals:
+            found_peaks, _  = find_peaks(sig, distance = self.min_spacing)
+            peaks.append(found_peaks)
+
+        return convolved_signals, peaks
+
+    def create_1d_gaussian(self, size, sigma):
+        """ 
+        create a 2-D gaussian blurr filter for a given size and sigma 
+        """
+        return  gaussian(size, sigma)
+
+    def broaden_peak(self, signal, width):
+        """
+        Boarden the peaks in the signal by width on either side of the centre position. 
+        """
+        row_coords = []
+        for i in range(-width, width + 1, 1):
+            [row_coords.append(x) for x in signal + i]
+
+        return row_coords
+
+    """def plot_peak_vec(peak_vec):
+        if len(peak_vec) > 10:
+            print('error, too many images!')
+        fig, axs = plt.subplots(2,5, figsize=(15, 6))
+        fig.subplots_adjust(hspace = .5, wspace=.001)
+        axs = axs.ravel()
+        for i in range(10):
+            axs[i].plot(filter_imgs[i])
+            axs[i].plot(peak_vec[i], linestyle='None', marker='o', markersize = 4.0, )
+            axs[i].set_title(f'{i}')
+    """
+
+    
 class HighlightFrontGrid:
 
     def __init__(self, consume_kwargs=True, **kwargs):
@@ -292,7 +462,6 @@ class HighlightFrontGrid:
                  o o f f o o
                  o o o o o o
                  o o o o o o
-
         value of o = 1/(count of o)
         value of f = -1/(count of f)
         """
@@ -337,7 +506,6 @@ class HighlightFrontGrid:
                  o o f f r r
                  o o o r r r
                  o o o r r r
-
         value of o = 1/(count of o)
         value of f = 1/(count of f)
         value of r = -1/(count of r)
@@ -380,7 +548,6 @@ class HighlightFrontGrid:
 
     def apply(self, in_imgs, do_debug=False):
         """
-
         """
 
         # Form an adaptive contrast

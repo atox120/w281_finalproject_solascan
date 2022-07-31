@@ -6,6 +6,16 @@ from scipy.signal.windows import gaussian
 from scipy.ndimage import convolve, convolve1d
 from skimage.feature import hog as sk_hog
 from skimage.feature import canny as sk_canny
+from skimage.filters import meijering as sk_meijiring 
+from skimage.filters import frangi as sk_frangi
+from skimage.filters import hessian as sk_hessian
+from skimage.filters import sato as sk_sato
+from skimage.filters import threshold_multiotsu as sk_threshold_multiotsu
+from skimage.filters import farid as sk_farid
+from skimage.filters import farid_v as sk_farid_v
+from skimage.filters import farid_h as sk_farid_h
+
+
 from app.imager import ImageLoader, DefectViewer, Show
 from app.utils import input_check, ImageWrapper, line_split_string, parallelize
 
@@ -476,7 +486,7 @@ class HOG:
         # For loop to apply the HOG filter to each img in the image array
         # the sk_hog method returns a tuple, and we are only interested in the image,
         # which is the second element.
-        # For loop to apply the canny function to each img in the image array
+        # For loop to apply the function to each img in the image array
         if get_images:
             out_list = [sk_hog(x, **self.params)[1] for x in in_imgs]
             out_imgs = np.stack(out_list, axis=0)
@@ -485,6 +495,399 @@ class HOG:
         else:
             return [sk_hog(x, **self.params)[0] for x in in_imgs]
 
+class Meijering:
+    """
+    Applies a meijering filter to the image
+    Wrapper for the skimage implementation
+    https://scikit-image.org/docs/stable/api/skimage.filters.html#skimage.filters.meijering
+    """
+
+    def __init__(self, sigmas, consume_kwargs=True,  **kwargs):
+        """
+        default sigmas=range(1,10,2)
+        :param sigmas:
+        :param consume_kwargs: If True check for empty kwargs
+        :param **kwargs: see below
+
+        :keyword Arguments:
+            :mode:
+            :alpha:
+            :black_ridges:
+            :cval:
+        """
+
+        self.params = {'sigmas': sigmas}
+        input_check(kwargs, 'mode', 'wrap', self.params, exception=False)
+        input_check(kwargs, 'alpha', None, self.params, exception=False)
+        input_check(kwargs, 'black_ridges', True, self.params, exception=False)
+        input_check(kwargs, 'cval', 0.0, self.params, exception=False)
+
+        if consume_kwargs and kwargs:
+            raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
+
+    def __lshift__(self, in_imw):
+        """
+        Applies a meijiring neuriteness filter to the input images
+
+        :param in_imw: Images of the shape (N, W, H)
+        :return:
+        """
+        if isinstance(in_imw, tuple):
+            in_imw = in_imw[-1]
+
+        out_img = self.apply(in_imw.images)
+
+        # If it is the output of a different function then take the last value in the tuple
+        category = f'\n Meijiring filter'
+        if self.params:
+            category += f' and params: {self.params}'
+        category = in_imw.category + line_split_string(category)
+
+        out_imw = ImageWrapper(out_img, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        return in_imw, out_imw
+
+    def apply(self, in_imgs):
+        """
+        Applies a meijiring filter
+        """
+        # For loop to apply the function to each img in the image array
+        out_list = [sk_meijiring(x, **self.params) for x in in_imgs]
+        out_imgs = np.stack(out_list, axis=0)
+
+        return out_imgs
+    
+class Frangi:
+    """
+    Applies a Frangi filter to the image
+    Wrapper for the skimage implementation
+    https://scikit-image.org/docs/stable/api/skimage.filters.html#skimage.filters.frangi
+    """
+
+    def __init__(self, sigmas, consume_kwargs=True,  **kwargs):
+        """
+        default: sigmas=range(1,10,2)
+        :param sigmas:
+        :param consume_kwargs: If True check for empty kwargs
+        :param **kwargs: see below
+
+        :keyword Arguments:
+            :scale_range:
+            :scale_step:
+            :alpha:
+            :beta:
+            :gamma:
+            :mode:
+            :alpha:
+            :black_ridges:
+            :cval:
+        """
+
+        self.params = {'sigmas': sigmas}
+        input_check(kwargs, 'scale_range', None, self.params, exception=False)
+        input_check(kwargs, 'scale_step', None, self.params, exception=False)
+        input_check(kwargs, 'alpha', 0.5, self.params, exception=False)
+        input_check(kwargs, 'beta', 0.5, self.params, exception=False)
+        input_check(kwargs, 'gamma', 15, self.params, exception=False)
+        input_check(kwargs, 'black_ridges', True, self.params, exception=False)
+        input_check(kwargs, 'mode', 'wrap', self.params, exception=False)
+        input_check(kwargs, 'cval', 0.0, self.params, exception=False)
+
+        if consume_kwargs and kwargs:
+            raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
+
+    def __lshift__(self, in_imw):
+        """
+        Applies a frangi vesselness filter to the input images
+
+        :param in_imw: Images of the shape (N, W, H)
+        :return:
+        """
+        if isinstance(in_imw, tuple):
+            in_imw = in_imw[-1]
+
+        out_img = self.apply(in_imw.images)
+
+        # If it is the output of a different function then take the last value in the tuple
+        category = f'\n Frangi filter'
+        if self.params:
+            category += f' and params: {self.params}'
+        category = in_imw.category + line_split_string(category)
+
+        out_imw = ImageWrapper(out_img, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        return in_imw, out_imw
+
+    def apply(self, in_imgs):
+        """
+        Applies a Frangi filter
+        """
+        # For loop to apply the function to each img in the image array
+        out_list = [sk_frangi(x, **self.params) for x in in_imgs]
+        out_imgs = np.stack(out_list, axis=0)
+
+        return out_imgs
+    
+class Hessian:
+    """
+    Applies a Hessian filter to the image
+    Wrapper for the skimage implementation
+    https://scikit-image.org/docs/stable/api/skimage.filters.html#skimage.filters.hessian
+    """
+
+    def __init__(self, sigmas, consume_kwargs=True,  **kwargs):
+        """
+        sigmas=range(1,10,2)
+        :param sigmas:
+        :param consume_kwargs: If True check for empty kwargs
+        :param **kwargs: see below
+
+        :keyword Arguments:
+            :scale_range:
+            :scale_step:
+            :alpha:
+            :beta:
+            :gamma:
+            :mode:
+            :alpha:
+            :black_ridges:
+            :cval:
+        """
+
+        self.params = {'sigmas': sigmas}
+        input_check(kwargs, 'scale_range', None, self.params, exception=False)
+        input_check(kwargs, 'scale_range', None, self.params, exception=False)
+        input_check(kwargs, 'scale_step', None, self.params, exception=False)
+        input_check(kwargs, 'beta', 0.5, self.params, exception=False)
+        input_check(kwargs, 'gamma', 15, self.params, exception=False)
+        input_check(kwargs, 'black_ridges', True, self.params, exception=False)
+        input_check(kwargs, 'mode', 'wrap', self.params, exception=False)
+        input_check(kwargs, 'cval', 0.0, self.params, exception=False)
+
+        if consume_kwargs and kwargs:
+            raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
+
+    def __lshift__(self, in_imw):
+        """
+        Applies a Hessian vesselness filter to the input images
+
+        :param in_imw: Images of the shape (N, W, H)
+        :return:
+        """
+        if isinstance(in_imw, tuple):
+            in_imw = in_imw[-1]
+
+        out_img = self.apply(in_imw.images)
+
+        # If it is the output of a different function then take the last value in the tuple
+        category = f'\n Hessian filter'
+        if self.params:
+            category += f' and params: {self.params}'
+        category = in_imw.category + line_split_string(category)
+
+        out_imw = ImageWrapper(out_img, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        return in_imw, out_imw
+
+    def apply(self, in_imgs):
+        """
+        Applies a Hessian filter
+        """
+        # For loop to apply the function to each img in the image array
+        out_list = [sk_hessian(x, **self.params) for x in in_imgs]
+        out_imgs = np.stack(out_list, axis=0)
+
+        return out_imgs
+
+class Sato:
+    """
+    Applies a Sato filter to the image
+    Wrapper for the skimage implementation
+    https://scikit-image.org/docs/stable/api/skimage.filters.html#skimage.filters.sato
+    """
+
+    def __init__(self, sigmas, consume_kwargs=True,  **kwargs):
+        """
+        sigmas=range(1,10,2)
+        :param sigmas:
+        :param consume_kwargs: If True check for empty kwargs
+        :param **kwargs: see below
+
+        :keyword Arguments:
+            :sigmas:
+            :mode:
+            :black_ridges:
+            :cval:
+        """
+
+        self.params = {'sigmas': sigmas}
+        input_check(kwargs, 'black_ridges', True, self.params, exception=False)
+        input_check(kwargs, 'mode', 'wrap', self.params, exception=False)
+        input_check(kwargs, 'cval', 0.0, self.params, exception=False)
+
+        if consume_kwargs and kwargs:
+            raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
+
+    def __lshift__(self, in_imw):
+        """
+        Applies a Sato tubeness filter to the input images
+
+        :param in_imw: Images of the shape (N, W, H)
+        :return:
+        """
+        if isinstance(in_imw, tuple):
+            in_imw = in_imw[-1]
+
+        out_img = self.apply(in_imw.images)
+
+        # If it is the output of a different function then take the last value in the tuple
+        category = f'\n Sato filter'
+        if self.params:
+            category += f' and params: {self.params}'
+        category = in_imw.category + line_split_string(category)
+
+        out_imw = ImageWrapper(out_img, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        return in_imw, out_imw
+
+    def apply(self, in_imgs):
+        """
+        Applies a Sato filter
+        """
+        # For loop to apply the function to each img in the image array
+        out_list = [sk_sato(x, **self.params) for x in in_imgs]
+        out_imgs = np.stack(out_list, axis=0)
+
+        return out_imgs
+    
+class Farid:
+    """
+    Applies a Farid filter to the image
+    Wrapper for the skimage implementation
+    https://scikit-image.org/docs/stable/api/skimage.filters.html#skimage.filters.farid
+    """
+
+    def __init__(self, how='default', consume_kwargs=True,  **kwargs):
+        """
+        sigmas=range(1,10,2)
+        :param how: orientation insensitive, horizontal or vertical
+        :param consume_kwargs: If True check for empty kwargs
+        :param **kwargs: see below
+
+        :keyword Arguments:
+            :mask: Optional mask to limit the application area
+        """
+
+        self.params = {'how': how}
+        input_check(kwargs, 'mask', None, self.params, exception=False)
+
+        if consume_kwargs and kwargs:
+            raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
+
+    def __lshift__(self, in_imw):
+        """
+        Applies a farid filter to the images
+
+        :param in_imw: Images of the shape (N, W, H)
+        :return:
+        """
+        if isinstance(in_imw, tuple):
+            in_imw = in_imw[-1]
+
+        out_img = self.apply(in_imw.images)
+
+        # If it is the output of a different function then take the last value in the tuple
+        category = f'\n Farid filter'
+        if self.params:
+            category += f' and params: {self.params}'
+        category = in_imw.category + line_split_string(category)
+
+        out_imw = ImageWrapper(out_img, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        return in_imw, out_imw
+
+    def apply(self, in_imgs):
+        """
+        Applies a Farid filter
+        """
+        # For loop to apply the function to each img in the image array
+        if self.params['how'] == 'default':
+            out_list = [sk_farid(x) for x in in_imgs]
+        elif self.params['how'] == 'horizontal':
+            out_list = [sk_farid_h(x) for x in in_imgs]
+        elif self.params['how'] == 'vertical':
+            out_list = [sk_farid_v(x) for x in in_imgs]
+            
+        out_imgs = np.stack(out_list, axis=0)
+
+        return out_imgs
+    
+class Threshold_Multiotsu:
+    """
+    Generates n_classes-1 threshold values to divide the image and applies it. 
+    Wrapper for the skimage implementation
+    https://scikit-image.org/docs/stable/api/skimage.filters.html#skimage.filters.threshold_multiotsu
+    follows implementation guide in
+    https://scikit-image.org/docs/stable/auto_examples/segmentation/plot_multiotsu.html#sphx-glr-auto-examples-segmentation-plot-multiotsu-py
+    """
+
+    def __init__(self, classes, consume_kwargs=True,  **kwargs):
+        """
+        :param classes: Number of classes to divide levels 
+        :param consume_kwargs: If True check for empty kwargs
+        :param **kwargs: see below
+
+        :keyword Arguments:
+            :nbins:
+            :hist:
+        """
+        self.levels = []
+        self.params = {'classes': classes}
+        input_check(kwargs, 'nbins', 256, self.params, exception=False)
+        input_check(kwargs, 'hist', None, self.params, exception=False)
+
+        if consume_kwargs and kwargs:
+            raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
+
+    def __lshift__(self, in_imw):
+        """
+        Calculates the Multi-Otsu thresholds and applies it to the image.
+
+        :param in_imw: Images of the shape (N, W, H)
+        :return:
+        """
+        if isinstance(in_imw, tuple):
+            in_imw = in_imw[-1]
+
+        out_img = self.apply(in_imw.images)
+
+        # If it is the output of a different function then take the last value in the tuple
+        category = f'\n Multi-Otsu threshold filter'
+        if self.params:
+            category += f' and params: {self.params}'
+        category = in_imw.category + line_split_string(category)
+
+        out_imw = ImageWrapper(out_img, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
+
+        return in_imw, out_imw
+
+    def apply(self, in_imgs):
+        """
+        Applies a multiotsu threshold filter to find the thresholds, then applies
+        the thresholding to the image via np.digitize. 
+        """
+        # For loop to apply the function to each img in the image array
+        out_list = []
+        for x in in_imgs:
+            #Get thresholds and save
+            levels = sk_threshold_multiotsu(x, **self.params)
+            self.levels.append(levels)
+            #apply thresholding to image 
+            out_list.append(np.digitize(x, bins=levels))
+            
+        out_imgs = np.stack(out_list, axis=0)
+
+        return out_imgs
 
 if __name__ == '__main__':
 
