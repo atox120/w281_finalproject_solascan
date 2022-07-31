@@ -546,7 +546,9 @@ class ModelNN:
             # If it is the best loss till now then save the model
             state_dict = copy.deepcopy(self.model_params)
             state_dict.update()
-            if len(epoch_val_loss) > 1 and epoch_val_loss[-1] < np.min(epoch_val_loss[:-1]):
+            # Save the first and then everytime it gets better
+            if len(epoch_val_loss) == 1 or \
+                    (len(epoch_val_loss) > 1 and epoch_val_loss[-1] < np.min(epoch_val_loss[:-1])):
                 state = {'epoch': epoch + 1, 'arch': 'CNN', 'best_loss': epoch_train_loss[-1],
                          'state_dict': model.state_dict(), 'model_params': self.model_params}
                 torch.save(state, f'../models/cnn_model_best.pth')
@@ -606,10 +608,7 @@ class ModelNN:
         :return:
         """
 
-        model_params = copy.deepcopy(self.model_params)
-
-        # Update the input model params
-        self.model_params = model_params
+        model_params = self.model_params
 
         # Split into train and test data
         seed = random.randint(0, 2 ** 32) if seed is None else seed
