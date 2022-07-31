@@ -1,12 +1,10 @@
 import copy
 import math
-import random
-import time
-
-import numpy as np
-# import the necessary packages
 import torch
 from torch import nn
+import random
+import numpy as np
+from collections.abc import Iterable
 from sklearn.decomposition import PCA
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.model_selection import train_test_split
@@ -127,6 +125,22 @@ class Classifier:
 
         return confusion, out_array
 
+    def predict(self, images):
+        """
+
+        :param images:
+        :return:
+        """
+        images = ~images
+        images = images.reshape((images.shape[0], -1))
+        if self.pca is not None:
+            images = self.pca.transform(images)
+
+        print(images.shape)
+        y_vals = self.model.predict(images)
+
+        return y_vals
+
     def fit(self, **params):
         """
         1. Apply the params to the data_class and model_class a
@@ -197,7 +211,7 @@ class Classifier:
         # Predict the model on the cv
         y_pred = self.model.predict(x_cv)
 
-        # Save the CV indices to refernce later
+        # Save the CV indices to reference later
         self.cv_data = (x_cv, y_cv, y_pred, cv_indices)
 
         # Calculate the balanced accuracy score
@@ -211,8 +225,7 @@ def get_output_shape(model, image_dim):
 
 
 class CNN(nn.Module):
-    def __init__(self, num_output_classes, channels=((1, 5), (20, 3), (20, 3)),
-                 input_shape=(1, 1, 174, 174)):
+    def __init__(self, num_output_classes, channels=((1, 5), (20, 3), (20, 3)), input_shape=(1, 1, 174, 174)):
         # call the parent constructor
         super(CNN, self).__init__()
 
@@ -226,7 +239,7 @@ class CNN(nn.Module):
             output_shape = get_output_shape(self.layers[-1], output_shape)
 
             self.layers.append(nn.ReLU())
-            self.layers.append(nn.BatchNorm2d(num_features=in_channel[1]))
+            self.layers.append(nn.BatchNorm2d(num_features=output_shape[1]))
             self.layers.append(nn.MaxPool2d(kernel_size=(2, 2), stride=(2, 2)))
             output_shape = get_output_shape(self.layers[-1], output_shape)
             in_channel = out_channel
@@ -254,10 +267,12 @@ class CNN(nn.Module):
 
 # noinspection PyPep8Naming
 class DataLoader:
-    def __init__(self, X, y, batchsize=1024, shuffleidx=True):
+    def __init__(self, X, y, batchsize=1024, shuffleidx=True, flatten=False):
         self.X, self.y = X, y
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         self.batchsize = batchsize
+        self.flatten = flatten
+
         if shuffleidx:
             index = list(range(X.shape[0]))
             random.shuffle(index)
@@ -276,6 +291,9 @@ class DataLoader:
         x = self.X[batchidx]
         y = self.y[batchidx]
 
+        if self.flatten:
+            x = x.reshape((x.shape[0], -1))
+
         # send it to the device
         x = torch.tensor(x).float().to(self.device)
         y = torch.tensor(y).long().to(self.device)
@@ -283,9 +301,55 @@ class DataLoader:
         return x, y
 
 
+class DNN(nn.Module):
+    def __init__(self, num_features, num_output_classes, dense_layers=None, dense_activation='relu', dropout=0):
+        # call the parent constructor
+        super(DNN, self).__init__()
+
+        self.dense_layers = dense_layers
+
+        # Check the inputs
+        if isinstance(dropout, Iterable):
+            # noinspection PyTypeChecker
+            if len(dropout) != len(dense_layers):
+                raise ValueError('For an iterable dropout, len(dropout) must equal len(layers)')
+            self.dropout = dropout
+        else:
+            self.dropout = (dropout, ) * len(dense_layers)
+
+        if dense_activation == 'relu':
+            self.dense_activation = nn.ReLU
+        elif dense_activation == 'leaky':
+            self.dense_activation = nn.LeakyReLU
+        elif dense_activation == 'linear':
+            self.dense_activation = nn.Linear
+        else:
+            raise KeyError('Unsupported actiation layer')
+
+        self.layers = nn.ModuleList([])
+        input_dim = num_features
+        for layer, (node, do) in enumerate(zip(self.dense_layers, self.dropout)):
+            # Initialize the number of layers
+            self.layers.append(nn.Linear(input_dim, node))
+            self.layers.append(self.dense_activation())
+            self.layers.append(nn.BatchNorm1d(node, affine=False))
+            self.layers.append(nn.Dropout(do))
+            input_dim = node
+
+        # initialize our softmax classifier
+        self.layers.append(nn.Linear(in_features=input_dim, out_features=num_output_classes))
+        self.layers.append(nn.LogSoftmax(dim=1))
+
+    def forward(self, x):
+        for layer in self.layers:
+            x = layer(x)
+
+        return x
+
+
 # noinspection PyPep8Naming
-class ModelCNN:
-    def __init__(self, defect, not_defect, model_params, optimizer_params, scheduler_params):
+class ModelNN:
+    def __init__(self, defect, not_defect, model_params, optimizer_params, scheduler_params, model_type='cnn'):
 
         # Format the data for the data loader
         defect = self._format(defect)
@@ -297,6 +361,18 @@ class ModelCNN:
         self.optimizer = None
         self.scheduler = None
         self.model = None
+        self.pca = None
+        self.model_type = model_type
+
+        if 'pca_dims' in model_params:
+            self.pca_dims = model_params['pca_dims']
+            del model_params['pca_dims']
+        else:
+            self.pca_dims = None
+
+        if self.pca_dims is not None and model_type == 'cnn':
+            raise KeyError('pca_dims is not a valid input for CNN mode')
+
         self.model_params = model_params
         self.optimizer_params = optimizer_params
         self.scheduler_params = scheduler_params
@@ -353,13 +429,15 @@ class ModelCNN:
         lr_min = self.scheduler_params['lr_min']
         scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
             self.optimizer,
-            T_0=n_steps * num_epochs + 1,
+            T_0=n_steps * num_epochs,
             T_mult=t_mul,
             eta_min=lr_min
         )
         self.scheduler = scheduler
 
-        return scheduler
+        total_epochs = (t_mul + 1) * num_epochs
+
+        return scheduler, total_epochs
 
     @staticmethod
     def _train_one_epoch(model, train_loader, criterion, optimizer, scheduler, epoch):
@@ -377,7 +455,7 @@ class ModelCNN:
 
         model.train()
 
-        start = time.perf_counter()
+        # start = time.perf_counter()
         losses = []
         for i in range(num_steps):
             # Set the X and Y data
@@ -385,7 +463,6 @@ class ModelCNN:
             x_data, y_data = train_loader[i]
 
             # Do I need to send to cuda?
-
             # Forward pass the model
             pred = model(x_data)
 
@@ -410,7 +487,7 @@ class ModelCNN:
         return losses
 
     @staticmethod
-    def _validate_one_epoch(model, val_loader, criterion, epoch):
+    def _validate_one_epoch(model, val_loader, criterion):
 
         model.eval()
         losses = []
@@ -459,11 +536,12 @@ class ModelCNN:
             epoch_train_loss.append(np.mean(it_loss))
 
             # Look at validation loss from this epoch
-            it_loss = self._validate_one_epoch(model, val_loader, criterion, epoch)
+            it_loss = self._validate_one_epoch(model, val_loader, criterion)
             epoch_val_loss.append(np.mean(it_loss))
 
             # Epoch train and validation losses
-            print(f'Epoch {epoch} train loss {epoch_train_loss[-1]} val loss {epoch_val_loss[-1]}')
+            print(f'Epoch {epoch} train loss {epoch_train_loss[-1]} val loss {epoch_val_loss[-1]} '
+                  f'lr {self.scheduler.get_last_lr()}')
 
             # If it is the best loss till now then save the model
             state_dict = copy.deepcopy(self.model_params)
@@ -475,7 +553,11 @@ class ModelCNN:
 
         # Load the final model
         state_dict = torch.load(open(f'../models/cnn_model_best.pth', 'rb'))
-        model = CNN(**state_dict['model_params'])
+
+        if self.model_type == 'cnn':
+            model = CNN(**state_dict['model_params'])
+        else:
+            model = DNN(**state_dict['model_params'])
 
         model.load_state_dict(state_dict['state_dict'])
         model.to(self.device)
@@ -500,6 +582,24 @@ class ModelCNN:
 
         return pred
 
+    def _apply_pca(self, pca_dims, x_train, x_cv):
+        """
+        Get the desired number of dimensions from the data
+        """
+        x_train = x_train.reshape((x_train.shape[0], -1))
+        x_cv = x_cv.reshape((x_cv.shape[0], -1))
+
+        if pca_dims is not None:
+
+            self.pca = PCA(n_components=pca_dims)
+
+            # Transform the train data
+            x_train = self.pca.fit_transform(x_train)
+
+            # Transform the CV data
+            x_cv = self.pca.transform(x_cv)
+        return x_train, x_cv
+
     def fit(self, num_epochs=10, seed=None):
         """
 
@@ -508,37 +608,50 @@ class ModelCNN:
 
         model_params = copy.deepcopy(self.model_params)
 
-        # During model creation a random sample is generated
-        # for finding size of layers. Make the first index
-        # 1 so that a massive array is not created
-        model_params['input_shape'] = list(self.X.shape)
-        model_params['input_shape'][0] = 1
         # Update the input model params
         self.model_params = model_params
-        self.model = CNN(**model_params)
-
-        self._get_optimizer()
-
-        seed = random.randint(0, 2**32) if seed is None else seed
 
         # Split into train and test data
+        seed = random.randint(0, 2 ** 32) if seed is None else seed
         x_train, x_cv, y_train, y_cv = \
             train_test_split(self.X, self.y, test_size=0.20, random_state=seed)
 
+        if self.model_type == 'dnn':
+            # Apply the PCA to the train set and transform the cv set too
+            x_train, x_cv = self._apply_pca(self.pca_dims, x_train, x_cv)
+
+        if self.model_type == 'cnn':
+            # During model creation a random sample is generated
+            # for finding size of layers. Make the first index
+            # 1 so that a massive array is not created
+            model_params['input_shape'] = list(x_train.shape)
+            model_params['input_shape'][0] = 1
+            self.model = CNN(**model_params)
+            flatten = False
+        else:
+            x_train = x_train.reshape((x_train.shape[0], -1))
+            x_cv = x_cv.reshape((x_cv.shape[0], -1))
+
+            model_params['num_features'] = x_train.shape[1]
+            self.model = DNN(**model_params)
+            flatten = True
+
+        self._get_optimizer()
+
         # Create a data loader for train and test data
-        train_loader = DataLoader(x_train, y_train, batchsize=self.batchsize)
-        val_loader = DataLoader(x_cv, y_cv, batchsize=self.batchsize)
+        train_loader = DataLoader(x_train, y_train, batchsize=self.batchsize, flatten=flatten)
+        val_loader = DataLoader(x_cv, y_cv, batchsize=self.batchsize, flatten=flatten)
 
         # Create a scheduler object
         n_steps = len(train_loader)
 
         # This schedules the learning rate
-        self._get_scheduler(n_steps, num_epochs)
+        _, total_epochs = self._get_scheduler(n_steps, num_epochs)
 
         # Loss criterion
         criterion = nn.CrossEntropyLoss()
 
-        self.model = self._fit(train_loader, val_loader, num_epochs, criterion)
+        self.model = self._fit(train_loader, val_loader, total_epochs, criterion)
 
         # Calculate model accuracy
         y_pred = self.predict(x_cv)
@@ -555,13 +668,12 @@ if __name__ == "__main__":
     # No defects have a mean of 0
     no_defec = np.random.randn(400, 174, 174)
 
-    op = {'name': 'sgd', 'lr': 0.001, 'nesterov': True, 'momentum': 0.9}
-    sp = {'lr_min': 0.0001, 't_mul': 2}
-    mp = {'num_output_classes': 2, 'channels': (1, 20, 20)}
+    op = {'name': 'sgd', 'lr': 0.01, 'nesterov': True, 'momentum': 0.9}
+    sp = {'lr_min': 0.00001, 't_mul': 2}
+    mp = {'num_output_classes': 2, 'channels': ((1, 5), (20, 3), (20, 3))}
+    # mp = {'num_output_classes': 2, 'dense_layers': (300, 300, 300), 'dense_activation': 'relu', 'pca_dims': 20}
 
     # Fit this model
-    mod = ModelCNN(defec, no_defec, mp, op, sp)
+    mod = ModelNN(defec, no_defec, mp, op, sp, model_type='cnn')
     sc = mod.fit()
     print(sc)
-
-

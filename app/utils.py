@@ -50,6 +50,37 @@ class ImageWrapper:
 
         return ImageWrapper(images.copy(), image_labels=image_labels, category=copy.deepcopy(self.category))
 
+    def __add__(self, other):
+        """
+
+        :param other: Combine this and other across axis=0
+        :return:
+        """
+        if not isinstance(other, ImageWrapper):
+            raise TypeError('Other must be and ImageWrapper object')
+
+        image_labels = self.image_labels + other.image_labels
+        images = np.concatenate((self.images, other.images), axis=0)
+
+        return ImageWrapper(images, image_labels=image_labels, category=self.category)
+
+    def __and__(self, other):
+        """
+
+        :param other: Combine this and other across axis=-1
+        :return:
+        """
+        if not isinstance(other, ImageWrapper):
+            raise TypeError(f'Other must be an ImageWrapper object but is of {type(other)}')
+
+        if np.any([x != y for x, y in zip(self.image_labels, other.image_labels)]):
+            raise KeyError(' Cannot perform operation as image labels are nto matched')
+
+        image_labels = self.image_labels
+        images = np.concatenate((self.images, other.images), axis=-1)
+
+        return ImageWrapper(images, image_labels=image_labels, category=self.category)
+
     def copy(self):
 
         return ImageWrapper(self.images.copy(), image_labels=copy.deepcopy(self.image_labels),

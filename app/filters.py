@@ -64,9 +64,9 @@ class CreateKernel:
             self.required_params = ['custom_kernel']
             self._check_required_params()
 
-            self.kernel_params = {}
             self.kernel_type = kernel
             self.kernel_val = self.kernel_params['custom_kernel']
+            del self.kernel_params['custom_kernel']
 
         else:
             raise KeyError('Kernel type not recognised. Allowable values: gaussian, custom, prewitt, sobel')
@@ -493,7 +493,7 @@ if __name__ == '__main__':
         n_samples = 1001
         images = DefectViewer() << (ImageLoader(defect_class='FrontGridInterruption') << n_samples)
 
-        # ck = CreateKernel(bim=2, kernel='gaussian', size=3, std=8)
+        # ck = CreateKernel(dim=2, kernel='gaussian', size=3, std=8)
         start = time.perf_counter()
         c_imgs = HOG(pixels_per_cell=(3, 3), num_jobs=20) << images
 

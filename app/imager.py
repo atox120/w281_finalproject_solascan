@@ -28,7 +28,7 @@ class ImageLoader:
         :param defect_class: None -> all defect classes. List -> ['FrontGridInterruption', 'Closed'], just these
             classes. string -> 'FrontGridInterruption', one class
         """
-        
+
         self.shuffle = shuffle
         self.defect_class = defect_class
         self.is_not = is_not
@@ -56,6 +56,9 @@ class ImageLoader:
         self.train_files_df = pd.read_csv("../data/train.csv")
         self.test_files_df = pd.read_csv("../data/test.csv")
 
+        # These are annotations for all files
+        self.all_annotations = self.annotations_df.groupby('defect_class')['filename'].unique().to_dict()
+
         # Remove all bad data files from annotations
         self.annotations_df = \
             self.annotations_df[np.logical_not(self.annotations_df['filename'].isin(all_bad['filename']))]
@@ -64,21 +67,22 @@ class ImageLoader:
         self.annotations_df = self.annotations_df[self.annotations_df['defect_class'] != 'FrontGridInterruption']
         # Add the hand selected ones back
         self.annotations_df = pd.concat((self.annotations_df, front_grid_df[self.annotations_df.columns]))
-        
-        ## Clean up the Cracks defect class 
+
+        # Clean up the Cracks defect class
         file_list = ['../data/Closed_.csv', '../data/Resistive_.csv', '../data/Isolated_.csv',
                      '../data/BrightSpot_.csv', '../data/Corrosion_.csv'
-                    ]
+                     ]
         defect_list = ['Closed', 'Resistive', 'Isolated', 'BrightSpot', 'Corrosion']
         original_cols = self.annotations_df.keys()
 
         for i in range(len(file_list)):
-            #Load corrections
+            # Load corrections
             corrections = pd.read_csv(file_list[i])
+
             # Merge onto lain df
             image_combined = self.annotations_df.merge(corrections, left_on='filename', right_on='filename', how='left')
             # process the corrections
-            image_combined['indx'] =image_combined.apply(
+            image_combined['indx'] = image_combined.apply(
                 lambda x: self.convert_annotations(x.clean, x.defect_class, f'{defect_list[i]}'), axis=1)
             # Apply filter
             corrected_df = image_combined[image_combined['indx']]
@@ -104,8 +108,9 @@ class ImageLoader:
     def __lshift__(self, n):
 
         return self.load_n(n, shuffle=self.shuffle, defect_classes=self.defect_class, is_not=self.is_not)
-    
-    def convert_annotations(self, x, y, filter_string):
+
+    @staticmethod
+    def convert_annotations(x, y, filter_string):
         """converts type of annotation from the annotation checker into boolean
         :param x: the annotation as string. 
         :param y: the defect class to which this is applied
@@ -114,16 +119,16 @@ class ImageLoader:
         """
 
         if y == filter_string:
-            if (x == 'TRUE') | (x == True) | (x == 'True'):
+            if x in ['True', 'TRUE', True]:
                 return True
-            elif (x == 'FALSE') | (x == 'spider') | (x == False) | (x == 'False'):
+            elif x in ['spider', 'False', 'FALSE', False]:
                 return False
             else:
                 return f"Debug {x} {y}"
         else:
             return True
 
-    def split_train_cv(self,  train_split=0.8, seed=2**17):
+    def split_train_cv(self, train_split=0.8, seed=2 ** 17):
         """
         Split train set in
 
@@ -154,7 +159,7 @@ class ImageLoader:
 
         return self.instance_count[defect_class]
 
-    def load_n(self, n, shuffle=True, defect_classes=None, is_not=False):
+    def load_n(self, n, shuffle=True, defect_classes=None, is_not=None):
         """
         Loads n images and returns a DataFrame with following schema:
             [filename, bounding_boxes, annotation_shape, segmentations]
@@ -168,12 +173,15 @@ class ImageLoader:
         :param defect_classes: If None, then all defect classes are returned.
                              If a string, then that defect class is extracted
                              If a list, then all the defect classes in the list are extracted
+        :param is_not: Returns inverse of defect class
         :return: DataFrame with samples
 
         Usage:
 
 
-        """ 
+        """
+        is_not = self.is_not if is_not is None else is_not
+
         if defect_classes is not None:
             # If it is not a list then make it a list
             if not isinstance(defect_classes, list):
@@ -197,20 +205,22 @@ class ImageLoader:
         # Return the DataFrame with the classes and the images
         # self.sample_df = self.main_df.groupby('defect_class').head(n) - #AT I think this shold be the last step.  
         self.sample_df = self.main_df[['filename', 'bounding_box_coords',
-                                         'annotation_shape', 'region_shape_attributes',
-                                         'defect_class']]
-        
+                                       'annotation_shape', 'region_shape_attributes',
+                                       'defect_class']]
+
         # Process whether we are selecting the defect class (is_not = False) 
         # or all other classes except the defect class (is_not = True)
-        if self.is_not:
+        if is_not:
             fname_list = self.sample_df[self.sample_df['defect_class'].isin(defect_classes)].filename.unique().tolist()
+            fname_list.extend(self.all_annotations[x].tolist() for x in defect_classes)
             self.sample_df = self.sample_df[np.logical_not(self.sample_df['filename'].isin(fname_list))]
         else:
             # If defect classes were provided then only keep the required ones
             self.sample_df = self.sample_df[self.sample_df['defect_class'].isin(defect_classes)]
 
-        #Filter to get n instances. 
-        self.sample_df = self.sample_df.head(n) 
+        # Filter to get n instances.
+        self.sample_df = self.sample_df.sample(frac=1)
+        self.sample_df = self.sample_df.head(n)
 
         # Add the location of the files to read from
         self.sample_df['fileloc'] = [os.path.join(self.train_file_loc, x) for x in self.sample_df['filename']]
@@ -269,7 +279,7 @@ class DefectViewer:
         images = np.stack(images, axis=0)
 
         # Convert from 0 to 1
-        images = images/255.0
+        images = images / 255.0
 
         return images
 
@@ -459,7 +469,7 @@ class DefectViewer:
         for group_name, group_df in sample_df.groupby(group_by):
 
             #  Create multiple pairs of images
-            fig = plt.figure(figsize=(6.4*2, 4.8*group_df.shape[0]))
+            fig = plt.figure(figsize=(6.4 * 2, 4.8 * group_df.shape[0]))
             plt.suptitle(group_name)
 
             # Reset the index
@@ -478,7 +488,7 @@ class DefectViewer:
 
                 # Add a subplot to the figure
                 # noinspection PyTypeChecker
-                ax = fig.add_subplot(group_df.shape[0], 2, index*2 + 1)
+                ax = fig.add_subplot(group_df.shape[0], 2, index * 2 + 1)
 
                 # Show
                 ax.imshow(row['image'], cmap='gray', norm=Normalize(vmin=0, vmax=1, clip=True))
@@ -486,10 +496,10 @@ class DefectViewer:
 
                 # Add a subplot to the figure
                 # noinspection PyTypeChecker
-                ax = fig.add_subplot(group_df.shape[0], 2, index*2 + 2)
+                ax = fig.add_subplot(group_df.shape[0], 2, index * 2 + 2)
 
                 # Show the defect annotations
-                ax.imshow(row['image'], cmap='gray', norm=Normalize(vmin=0, vmax=1, clip=True) )
+                ax.imshow(row['image'], cmap='gray', norm=Normalize(vmin=0, vmax=1, clip=True))
                 ax.set_title(group_name)
 
                 for annotation in this_file_df[annotation_column]:
@@ -558,7 +568,7 @@ class Show:
         self.num_images = in_imgs[0].shape[0] if self.num_images is None else self.num_images
 
         n_rows = min(in_imgs[0].shape[0], self.num_images)
-        fig = plt.figure(figsize=(6.4*n_cols, 4.8*n_rows))
+        fig = plt.figure(figsize=(6.4 * n_cols, 4.8 * n_rows))
 
         # Which images to plot
         total_rows = in_imgs[0].shape[0]
@@ -580,7 +590,7 @@ class Show:
 
             # Walk through every column of the image
             for col_cnt in range(len(in_imgs)):
-                img_cnt = plt_rows*n_cols + col_cnt + 1
+                img_cnt = plt_rows * n_cols + col_cnt + 1
                 ax = fig.add_subplot(n_rows, n_cols, img_cnt)
                 ax.imshow(np.squeeze(in_imgs[col_cnt][row_cnt, :, :]), cmap='gray',
                           norm=Normalize(vmin=0, vmax=1, clip=True))
@@ -670,7 +680,7 @@ class Exposure:
 
         # Add the
         category = f'\n Exposure mode {self.mode} with params {self.params}' if self.params else \
-                   f'\n Exposure mode {self.mode}'
+            f'\n Exposure mode {self.mode}'
         category = in_imw.category + line_split_string(category)
 
         out_imw = ImageWrapper(out_imgs, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
@@ -730,8 +740,8 @@ class Exposure:
         # Gain parameter controls the steepness of the sigmoid
         gain = self.params['gain']
 
-        return 1/(1 + np.exp(-sign * gain * (in_imgs - cutoff)))
-    
+        return 1 / (1 + np.exp(-sign * gain * (in_imgs - cutoff)))
+
     def adjust_sigmoid_dynamic(self, in_imgs):
         """
         Performs a sigmoid correction on the input image
@@ -757,7 +767,7 @@ class Exposure:
             # Fraction at which to make the cutoff
             cut_val = minv + (val_range * cutoff)
             # This is the sigmoid adjusted image
-            adjusted = 1/(1 + np.exp(-sign * gain * (img - cut_val)))
+            adjusted = 1 / (1 + np.exp(-sign * gain * (img - cut_val)))
             out_imgs.append(adjusted)
         out_imgs = np.stack(out_imgs)
 
@@ -777,7 +787,7 @@ class Exposure:
         # Gain parameter controls the steepness of the gamma
         gain = self.params['gain']
 
-        return gain*(in_imgs**gamma)
+        return gain * (in_imgs ** gamma)
 
     @staticmethod
     def invert(in_imgs):
@@ -878,7 +888,6 @@ if __name__ == '__main__':
 
     do_test_viewer = False
     if do_test_viewer:
-
         # Load all defects
         imgv.load_n(10, defect_classes=None)
         dv = DefectViewer(imgv)
