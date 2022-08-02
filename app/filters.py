@@ -6,7 +6,7 @@ from scipy.signal.windows import gaussian
 from scipy.ndimage import convolve, convolve1d
 from skimage.feature import hog as sk_hog
 from skimage.feature import canny as sk_canny
-from skimage.filters import meijering as sk_meijiring 
+from skimage.filters import meijering as sk_meijering 
 from skimage.filters import frangi as sk_frangi
 from skimage.filters import hessian as sk_hessian
 from skimage.filters import sato as sk_sato
@@ -319,7 +319,6 @@ class Convolve:
             # Create 2d filter and normalise
             return convolve(in_imgs, kernel, mode=self.mode, cval=self.cval)
 
-
 class Canny:
     """
     Applies a canny filter to the image
@@ -527,7 +526,7 @@ class Meijering:
 
     def __lshift__(self, in_imw):
         """
-        Applies a meijiring neuriteness filter to the input images
+        Applies a meijering neuriteness filter to the input images
 
         :param in_imw: Images of the shape (N, W, H)
         :return:
@@ -538,7 +537,7 @@ class Meijering:
         out_img = self.apply(in_imw.images)
 
         # If it is the output of a different function then take the last value in the tuple
-        category = f'\n Meijiring filter'
+        category = f'\n Meijering filter'
         if self.params:
             category += f' and params: {self.params}'
         category = in_imw.category + line_split_string(category)
@@ -549,10 +548,10 @@ class Meijering:
 
     def apply(self, in_imgs):
         """
-        Applies a meijiring filter
+        Applies a meijering filter
         """
         # For loop to apply the function to each img in the image array
-        out_list = [sk_meijiring(x, **self.params) for x in in_imgs]
+        out_list = [sk_meijering(x, **self.params) for x in in_imgs]
         out_imgs = np.stack(out_list, axis=0)
 
         return out_imgs
@@ -831,7 +830,7 @@ class Threshold_Multiotsu:
     https://scikit-image.org/docs/stable/auto_examples/segmentation/plot_multiotsu.html#sphx-glr-auto-examples-segmentation-plot-multiotsu-py
     """
 
-    def __init__(self, classes, consume_kwargs=True,  **kwargs):
+    def __init__(self, consume_kwargs=True,  **kwargs):
         """
         :param classes: Number of classes to divide levels 
         :param consume_kwargs: If True check for empty kwargs
@@ -842,7 +841,27 @@ class Threshold_Multiotsu:
             :hist:
         """
         self.levels = []
-        self.params = {'classes': classes}
+        
+        if 'n_classes' in kwargs:
+            self.n_classes = kwargs['n_classes']
+            del kwargs['n_classes']
+        else:
+            self.n_classes = 3
+            
+        if 'threshold' in kwargs:
+            self.threshold = kwargs['threshold']
+            del kwargs['threshold']
+        else:
+            self.threshold = 1
+            
+        if 'digitize' in kwargs:
+            self.digitize = kwargs['digitize']
+            del kwargs['digitize']
+        else:
+            self.digitize = True
+            
+        self.params = {}
+            
         input_check(kwargs, 'nbins', 256, self.params, exception=False)
         input_check(kwargs, 'hist', None, self.params, exception=False)
 
@@ -862,7 +881,7 @@ class Threshold_Multiotsu:
         out_img = self.apply(in_imw.images)
 
         # If it is the output of a different function then take the last value in the tuple
-        category = f'\n Multi-Otsu threshold filter'
+        category = f'\n Multi-Otsu threshold filter into {self.n_classes} classes'
         if self.params:
             category += f' and params: {self.params}'
         category = in_imw.category + line_split_string(category)
@@ -878,16 +897,34 @@ class Threshold_Multiotsu:
         """
         # For loop to apply the function to each img in the image array
         out_list = []
-        for x in in_imgs:
+        
+        self.check_thresholds()
+        
+        for img in in_imgs:
+            
             #Get thresholds and save
-            levels = sk_threshold_multiotsu(x, **self.params)
+            levels = sk_threshold_multiotsu(img, **self.params)
             self.levels.append(levels)
-            #apply thresholding to image 
-            out_list.append(np.digitize(x, bins=levels))
+            
+            #apply thresholding to image
+            if self.digitize:
+                out_list.append(np.digitize(img, bins=levels))
+            else:
+                mask = (img > levels[self.threshold-1])
+                out_list.append(img * mask)
             
         out_imgs = np.stack(out_list, axis=0)
 
         return out_imgs
+    
+    def check_thresholds(self):
+        
+        if self.threshold - 1 < 0:
+            raise Exception('The selected threshold must be greater than 0.')
+        elif self.threshold >= self.n_classes:
+            raise Exception('The selected threshold must be lower than the number of classes.')
+            
+            
 
 if __name__ == '__main__':
 
