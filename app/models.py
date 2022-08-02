@@ -225,7 +225,8 @@ def get_output_shape(model, image_dim):
 
 
 class CNN(nn.Module):
-    def __init__(self, num_output_classes, channels=((1, 5), (20, 3), (20, 3)), input_shape=(1, 1, 174, 174)):
+    def __init__(self, num_output_classes, channels=((1, 5), (20, 3), (20, 3)), input_shape=(1, 1, 174, 174),
+                 dense_layers=(300, 300)):
         # call the parent constructor
         super(CNN, self).__init__()
 
@@ -244,18 +245,19 @@ class CNN(nn.Module):
             output_shape = get_output_shape(self.layers[-1], output_shape)
             in_channel = out_channel
 
-        in_layers = int(np.prod(output_shape))
-        out_layers = math.ceil(in_layers / 10)
+        in_layer = int(np.prod(output_shape))
 
         # Add a flatten layer
         self.layers.append(nn.Flatten())
 
         # Two layers of output
-        self.layers.append(nn.Linear(in_features=in_layers, out_features=out_layers))
-        self.layers.append(nn.ReLU())
+        for out_layer in dense_layers:
+            self.layers.append(nn.Linear(in_features=in_layer, out_features=out_layer))
+            self.layers.append(nn.ReLU())
+            in_layer = out_layer
 
         # initialize our softmax classifier
-        self.layers.append(nn.Linear(in_features=out_layers, out_features=num_output_classes))
+        self.layers.append(nn.Linear(in_features=in_layer, out_features=num_output_classes))
         self.layers.append(nn.LogSoftmax(dim=1))
 
     def forward(self, x):
