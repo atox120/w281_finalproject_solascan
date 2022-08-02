@@ -14,8 +14,6 @@ from skimage.filters import threshold_multiotsu as sk_threshold_multiotsu
 from skimage.filters import farid as sk_farid
 from skimage.filters import farid_v as sk_farid_v
 from skimage.filters import farid_h as sk_farid_h
-
-
 from app.imager import ImageLoader, DefectViewer, Show
 from app.utils import input_check, ImageWrapper, line_split_string, parallelize
 
@@ -74,9 +72,9 @@ class CreateKernel:
             self.required_params = ['custom_kernel']
             self._check_required_params()
 
-            self.kernel_params = {}
             self.kernel_type = kernel
             self.kernel_val = self.kernel_params['custom_kernel']
+            del self.kernel_params['custom_kernel']
 
         else:
             raise KeyError('Kernel type not recognised. Allowable values: gaussian, custom, prewitt, sobel')
@@ -274,7 +272,7 @@ class Convolve:
             # Divide in_imgs into chunks
             # At least 2 images per job
             num_jobs = self.num_jobs
-            chunk_size = math.ceil(in_imgs.shape[0]/num_jobs)
+            chunk_size = math.ceil(in_imgs.shape[0] / num_jobs)
             chunk_size = 1 if chunk_size < 1 else chunk_size
 
             # Split the image into so many chunks
@@ -326,7 +324,7 @@ class Canny:
     https://scikit-image.org/docs/stable/auto_examples/edges/plot_canny.html
     """
 
-    def __init__(self, sigma, consume_kwargs=True,  **kwargs):
+    def __init__(self, sigma, consume_kwargs=True, **kwargs):
         """
 
         :param sigma:
@@ -461,7 +459,7 @@ class HOG:
             # Divide in_imgs into chunks
             # At least 2 images per job
             num_jobs = self.num_jobs
-            chunk_size = math.ceil(in_imgs.shape[0]/num_jobs)
+            chunk_size = math.ceil(in_imgs.shape[0] / num_jobs)
             chunk_size = 1 if chunk_size < 1 else chunk_size
 
             # Split the image into so many chunks
@@ -494,6 +492,7 @@ class HOG:
         else:
             return [sk_hog(x, **self.params)[0] for x in in_imgs]
 
+
 class Meijering:
     """
     Applies a meijering filter to the image
@@ -501,7 +500,7 @@ class Meijering:
     https://scikit-image.org/docs/stable/api/skimage.filters.html#skimage.filters.meijering
     """
 
-    def __init__(self, sigmas, consume_kwargs=True,  **kwargs):
+    def __init__(self, sigmas, consume_kwargs=True, **kwargs):
         """
         default sigmas=range(1,10,2)
         :param sigmas:
@@ -555,7 +554,8 @@ class Meijering:
         out_imgs = np.stack(out_list, axis=0)
 
         return out_imgs
-    
+
+
 class Frangi:
     """
     Applies a Frangi filter to the image
@@ -563,7 +563,7 @@ class Frangi:
     https://scikit-image.org/docs/stable/api/skimage.filters.html#skimage.filters.frangi
     """
 
-    def __init__(self, sigmas, consume_kwargs=True,  **kwargs):
+    def __init__(self, sigmas, consume_kwargs=True, **kwargs):
         """
         default: sigmas=range(1,10,2)
         :param sigmas:
@@ -626,7 +626,8 @@ class Frangi:
         out_imgs = np.stack(out_list, axis=0)
 
         return out_imgs
-    
+
+
 class Hessian:
     """
     Applies a Hessian filter to the image
@@ -634,7 +635,7 @@ class Hessian:
     https://scikit-image.org/docs/stable/api/skimage.filters.html#skimage.filters.hessian
     """
 
-    def __init__(self, sigmas, consume_kwargs=True,  **kwargs):
+    def __init__(self, sigmas, consume_kwargs=True, **kwargs):
         """
         sigmas=range(1,10,2)
         :param sigmas:
@@ -698,6 +699,7 @@ class Hessian:
 
         return out_imgs
 
+
 class Sato:
     """
     Applies a Sato filter to the image
@@ -705,7 +707,7 @@ class Sato:
     https://scikit-image.org/docs/stable/api/skimage.filters.html#skimage.filters.sato
     """
 
-    def __init__(self, sigmas, consume_kwargs=True,  **kwargs):
+    def __init__(self, sigmas, consume_kwargs=True, **kwargs):
         """
         sigmas=range(1,10,2)
         :param sigmas:
@@ -758,7 +760,8 @@ class Sato:
         out_imgs = np.stack(out_list, axis=0)
 
         return out_imgs
-    
+
+
 class Farid:
     """
     Applies a Farid filter to the image
@@ -766,7 +769,7 @@ class Farid:
     https://scikit-image.org/docs/stable/api/skimage.filters.html#skimage.filters.farid
     """
 
-    def __init__(self, how='default', consume_kwargs=True,  **kwargs):
+    def __init__(self, how='default', consume_kwargs=True, **kwargs):
         """
         sigmas=range(1,10,2)
         :param how: orientation insensitive, horizontal or vertical
@@ -816,12 +819,15 @@ class Farid:
             out_list = [sk_farid_h(x) for x in in_imgs]
         elif self.params['how'] == 'vertical':
             out_list = [sk_farid_v(x) for x in in_imgs]
-            
+        else:
+            raise KeyError(f"Unsupported fileter type {self.params['how']}")
+
         out_imgs = np.stack(out_list, axis=0)
 
         return out_imgs
-    
-class Threshold_Multiotsu:
+
+
+class ThresholdMultiotsu:
     """
     Generates n_classes-1 threshold values to divide the image and applies it. 
     Wrapper for the skimage implementation
@@ -926,6 +932,7 @@ class Threshold_Multiotsu:
             
             
 
+
 if __name__ == '__main__':
 
     do_kernel = True
@@ -933,7 +940,7 @@ if __name__ == '__main__':
         n_samples = 1001
         images = DefectViewer() << (ImageLoader(defect_class='FrontGridInterruption') << n_samples)
 
-        # ck = CreateKernel(bim=2, kernel='gaussian', size=3, std=8)
+        # ck = CreateKernel(dim=2, kernel='gaussian', size=3, std=8)
         start = time.perf_counter()
         c_imgs = HOG(pixels_per_cell=(3, 3), num_jobs=20) << images
 

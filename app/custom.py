@@ -1,11 +1,10 @@
 import copy
 import numpy as np
-
+# noinspection PyUnresolvedReferences
 from scipy.signal import find_peaks, gaussian
-
 from app.imager import Show, Exposure
+from app.filters import HOG, Convolve, Farid
 from app.utils import ImageWrapper, input_check, line_split_string
-from app.filters import HOG, Convolve, CreateKernel, Farid
 
 
 class Orient:
@@ -159,7 +158,7 @@ class RemoveBusBars:
             images = in_imw[-1].images
 
         # Apply BusBar removal
-        out_img = self.apply(images,  hog_images)
+        out_img = self.apply(images, hog_images)
 
         category = in_imw[-1].category
         category += f'\n Busbar removed'
@@ -233,7 +232,7 @@ class RemoveBusBars:
         # Now shake the images
         if not self.zero_bars:
             out_imgs = (1 - final_hog) * in_imgs + final_hog * (
-                        np.roll(in_imgs, shift=10, axis=-2) + np.roll(in_imgs, shift=-10, axis=-2)) / 2
+                    np.roll(in_imgs, shift=10, axis=-2) + np.roll(in_imgs, shift=-10, axis=-2)) / 2
         else:
             if self.keep_bars:
                 out_imgs = final_hog * in_imgs
@@ -245,8 +244,9 @@ class RemoveBusBars:
 
         return out_imgs
 
+
 class BusbarMask:
-        
+
     def __init__(self, consume_kwargs=True, **kwargs):
         """
         Creates a mask for the busbars, along the full width of the image
@@ -274,7 +274,7 @@ class BusbarMask:
             del kwargs['blur_width']
         else:
             self.blur_width = 5
-            
+
         if 'blur_sigma' in kwargs:
             self.blur_sigma = kwargs['blur_sigma']
             del kwargs['blur_sigma']
@@ -286,18 +286,20 @@ class BusbarMask:
             del kwargs['broadening']
         else:
             self.broadening = 3
-            
+
         self.params = {}
-        self.debug=False
+        self.debug = False
 
         if consume_kwargs and kwargs:
             raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
-        
+
     def __lshift__(self, in_imw):
 
         if isinstance(in_imw, tuple):
             transformed = in_imw[-1]
             in_imw = in_imw[0]
+        else:
+            transformed = in_imw
 
         out_img = (1 - self.apply(in_imw.images)) * transformed.images
 
@@ -310,7 +312,7 @@ class BusbarMask:
         out_imw = ImageWrapper(out_img, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
 
         return in_imw, out_imw
-    
+
     def apply(self, in_imgs):
         """
         Wrapper to apply function, standardises syntax. 
@@ -321,19 +323,19 @@ class BusbarMask:
         return masks
 
     def get_mask(self, in_imgs):
-    
+
         # Apply Farid Horizontal filter to find gradient
         filter_imgs = Farid(how='horizontal').apply(in_imgs)
         row_signal = filter_imgs.sum(axis=-1).astype(int) ** 2
 
         # Find centre points of busbars
-        filtered_imgs, found_peaks = self.filter_1D(row_signal)
+        filtered_imgs, found_peaks = self.filter_1d(row_signal)
 
         # Now we need to create the mask broadened around the peak
-        n = filtered_imgs.shape[1] #Length of the vector
+        n = filtered_imgs.shape[1]  # Length of the vector
         indx_list = []
         for i in range(filtered_imgs.shape[0]):
-            #Broaden the peaks
+            # Broaden the peaks
             broadened_vec = self.broaden_peak(found_peaks[i], self.broadening)
             # 1 hot encoding of busbar positions
             indx = np.zeros(n)
@@ -343,29 +345,28 @@ class BusbarMask:
         peak_vec = np.stack(indx_list, axis=0)
 
         # Create mask by stretching out the mask to fill out the columns
-        mask = np.repeat(peak_vec[:,:,np.newaxis], peak_vec.shape[1], axis=2)
+        mask = np.repeat(peak_vec[:, :, np.newaxis], peak_vec.shape[1], axis=2)
 
         if self.debug:
             return mask, peak_vec, filtered_imgs, found_peaks, row_signal
         else:
             return mask
 
-
-    def filter_1D(self, signal):
+    def filter_1d(self, signal):
         """
         Filters a 1D signal by:
         - cleaning an edge buffer to zero.
         - blurring the 1D signal to merge peaks
         """
-    
-        if self.edge_buffer > 0:
-            #Fitler top and bottom
-            signal[:, 0:self.edge_buffer] = 0
-            signal[:,-self.edge_buffer:] = 0
 
-        #Convolve to blur peak
+        if self.edge_buffer > 0:
+            # Fitler top and bottom
+            signal[:, 0:self.edge_buffer] = 0
+            signal[:, -self.edge_buffer:] = 0
+
+        # Convolve to blur peak
         kernel = self.create_1d_gaussian(self.blur_width, self.blur_sigma)
-        out_list=[]
+        out_list = []
         for sig in signal:
             convolved = np.convolve(sig, kernel, mode='same')
             out_list.append(convolved)
@@ -374,18 +375,20 @@ class BusbarMask:
         peaks = []
         # Find the peaks
         for sig in convolved_signals:
-            found_peaks, _  = find_peaks(sig, distance = self.min_spacing)
+            found_peaks, _ = find_peaks(sig, distance=self.min_spacing)
             peaks.append(found_peaks)
 
         return convolved_signals, peaks
 
-    def create_1d_gaussian(self, size, sigma):
+    @staticmethod
+    def create_1d_gaussian(size, sigma):
         """ 
         create a 2-D gaussian blurr filter for a given size and sigma 
         """
-        return  gaussian(size, sigma)
+        return gaussian(size, sigma)
 
-    def broaden_peak(self, signal, width):
+    @staticmethod
+    def broaden_peak(signal, width):
         """
         Boarden the peaks in the signal by width on either side of the centre position. 
         """
@@ -395,19 +398,7 @@ class BusbarMask:
 
         return row_coords
 
-    """def plot_peak_vec(peak_vec):
-        if len(peak_vec) > 10:
-            print('error, too many images!')
-        fig, axs = plt.subplots(2,5, figsize=(15, 6))
-        fig.subplots_adjust(hspace = .5, wspace=.001)
-        axs = axs.ravel()
-        for i in range(10):
-            axs[i].plot(filter_imgs[i])
-            axs[i].plot(peak_vec[i], linestyle='None', marker='o', markersize = 4.0, )
-            axs[i].set_title(f'{i}')
-    """
 
-    
 class HighlightFrontGrid:
 
     def __init__(self, consume_kwargs=True, **kwargs):
@@ -421,16 +412,18 @@ class HighlightFrontGrid:
         """
 
         if 'num_jobs' in kwargs:
-            self.num_jobs = kwargs['kwargs']
+            self.num_jobs = kwargs['num_jobs']
             del kwargs['num_jobs']
+        else:
+            self.num_jobs = 1
 
         self.params = {}
-        input_check(kwargs, 'reduce_max', 1, self.params, exception=False)
-        input_check(kwargs, 'finger_mult', 10, self.params, exception=False)
-        input_check(kwargs, 'finger_height', 15, self.params, exception=False)
+        input_check(kwargs, 'finger_mult', 1, self.params, exception=False)
+        input_check(kwargs, 'finger_height', 10, self.params, exception=False)
         input_check(kwargs, 'finger_width', 8, self.params, exception=False)
-        input_check(kwargs, 'padding_mult', 2, self.params, exception=False)
+        input_check(kwargs, 'side_padding', 2, self.params, exception=False)
         input_check(kwargs, 'top_padding', 0, self.params, exception=False)
+        input_check(kwargs, 'bottom_padding', 0, self.params, exception=False)
         input_check(kwargs, 'flipped', False, self.params, exception=False)
 
         if consume_kwargs and kwargs:
@@ -451,8 +444,8 @@ class HighlightFrontGrid:
         return in_imw, out_imw
 
     @staticmethod
-    def simple_finger_kernel(finger_width=2, finger_height=6, side_padding=2, top_padding=3, finger_mult=2,
-                             flipped=False):
+    def simple_finger_kernel(finger_width=2, finger_height=6, side_padding=2, top_padding=3, bottom_padding=3,
+                             finger_mult=2, flipped=False):
         """
         Kernel of a shape that highlights a finger
                  o o f f o o
@@ -467,12 +460,12 @@ class HighlightFrontGrid:
         value of f = -1/(count of f)
         """
 
-        if (finger_height + top_padding) % 2 == 0:
+        if (bottom_padding + finger_height + top_padding) % 2 == 0:
             finger_height += 1
 
         # Width and height of the finger
         width = finger_width + 2 * side_padding
-        height = finger_height + top_padding
+        height = finger_height + top_padding + bottom_padding
 
         #
         total_size = width * height
@@ -484,7 +477,8 @@ class HighlightFrontGrid:
 
         # Create the kernel here
         kernel = np.ones((width, height)) * outer_weight
-        kernel[side_padding:side_padding + finger_width, :finger_height] = -finger_weight * finger_mult
+        kernel[side_padding:side_padding + finger_width, bottom_padding:bottom_padding + finger_height] = \
+            -finger_weight * finger_mult
 
         if kernel.shape[0] % 2 == 0:
             kernel = np.vstack((kernel, np.zeros((kernel.shape[1],))))
@@ -495,107 +489,33 @@ class HighlightFrontGrid:
 
         return kernel
 
-    @staticmethod
-    def complex_finger_kernel(finger_width=2, finger_height=6, side_padding=2, top_padding=2, finger_mult=2,
-                              flipped=False):
-        """
-                 o o f f r r
-                 o o f f r r
-                 o o f f r r
-                 o o f f r r
-                 o o f f r r
-                 o o f f r r
-                 o o o r r r
-                 o o o r r r
-        value of o = 1/(count of o)
-        value of f = 1/(count of f)
-        value of r = -1/(count of r)
+    def apply(self, in_imgs):
         """
 
-        if (finger_height + top_padding) % 2 == 0:
-            top_padding += 1
+        :param: in_imgs:
+        :return:
 
-        #
-        width = finger_width + 2 * side_padding
-        height = finger_height + top_padding
-
-        kernel = np.zeros((width, height))
-
-        # Side pad weight is 1/the number of elements in it
-        padded_area_weight = 1 / (side_padding * height)
-        # print(f'Padded area weight {padded_area_weight}')
-
-        kernel[:side_padding, :] = padded_area_weight
-        kernel[-side_padding:, :] = -padded_area_weight
-
-        # These are the
-        symmetric_elements = int(finger_width / 2)
-        top_pad_weight = 1 / (symmetric_elements * top_padding)
-        # print(f'Top pad weight {top_pad_weight}')
-
-        # Setup the padding for the bottom
-        kernel[side_padding:side_padding + symmetric_elements, finger_height:] = top_pad_weight
-        kernel[-(side_padding + symmetric_elements):-side_padding, finger_height:] = -top_pad_weight
-
-        # Setup the weights for the finger
-        finger_weight = 1 / (finger_width * finger_height)
-        kernel[side_padding:side_padding + finger_width, :finger_height] = finger_weight * finger_mult
-
-        kernel = kernel.T
-        if flipped:
-            kernel = np.flipud(kernel)
-
-        return kernel
-
-    def apply(self, in_imgs, do_debug=False):
-        """
         """
 
-        # Form an adaptive contrast
-        stretched_imgs = Exposure('adaptive').apply(in_imgs)
+        #  Remove the bus bars from the data
+        nobus_images = RemoveBusBars(num_jobs=self.num_jobs).apply(in_imgs)
 
-        all_ops = []
-        after_conv = []
-        after_sobel = []
+        # Make the exposire daptive to highlight the bars
+        exposure = Exposure('adaptive').apply(nobus_images)
 
-        params = copy.deepcopy(self.params)
-        params['side_padding'] = params['finger_width'] * params['padding_mult']
+        # This is the kernel on the image
+        kernel = self.simple_finger_kernel(**self.params)
 
-        # Convolve the image with kernel
-        # Stretch the values after applying kernel
-        kernel = self.simple_finger_kernel(params['finger_width'], params['finger_height'], params['side_padding'],
-                                           params['top_padding'], params['finger_mult'], flipped=params['flipped'])
+        # Apply the kernel as is
+        front = Convolve(axis=1).apply(exposure, kernel)
 
-        conv_imgs = Convolve(num_jobs=self.num_jobs).apply(stretched_imgs, kernel)
-        conv_stretch = Exposure('stretch').apply(conv_imgs)
+        # Reverse the sign of the kernel and run it
+        front_flipped = Convolve(axis=1).apply(exposure, kernel=-1 * kernel)
 
-        # Apply sobel on opt of it
-        sobel_kernel = CreateKernel(kernel='sobel', axis=0).apply()
-        sobel_imgs = Convolve(num_jobs=self.num_jobs).apply(conv_stretch, sobel_kernel)
+        # Take a delta of kernel run both ways
+        delta = front - front_flipped
 
-        if do_debug:
-            after_conv.append(conv_stretch)
-            after_sobel.append(sobel_imgs)
+        # Stretch to make it fit 0 to 1
+        stretched = Exposure('stretch').apply(delta)
 
-        # All operations
-        all_ops.append(sobel_imgs)
-
-        # Take a Max across all configurations
-        multi_stack = np.stack(all_ops, axis=0)
-
-        if params['reduce_max']:
-            multi_stack = np.max(multi_stack, axis=0)
-        else:
-            multi_stack = np.min(multi_stack, axis=0)
-
-        # Apply HOG on the multi stack
-        # hog_imgs = HOG(pixels_per_cell=(5, 5), num_jobs=20).apply(multi_stack, get_images=True)
-        stretch = Exposure('stretch').apply(multi_stack)
-
-        # Perform the HIG
-        # hog_imgs = HOG(pixels_per_cell=(5, 5), num_jobs=self.num_jobs).apply(stretch, get_images=True)
-
-        if do_debug:
-            Show(num_images=10, seed=1234).show(
-                (in_imgs, stretched_imgs,) + tuple(after_conv) + tuple(after_sobel) + (multi_stack, stretch))
-        return stretch
+        return stretched

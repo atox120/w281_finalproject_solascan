@@ -626,6 +626,64 @@ class PCA:
             out_imgs = np.stack(out_list, axis=0)
 
         return out_imgs
+    
+class Butterworth:
+    '''
+    Creats butterworth filters for FFT
+        
+    '''
+    
+    def __init__(self, in_img):
+        '''
+        
+        :param in_img: Sample (singular) image to get the shape of the filter
+        :type in_img: 2D array
+
+        '''
+        
+        self.shape = in_img.shape
+
+    
+    def lowpass(self, D0_low, n_low):
+        '''
+        
+        
+        :returns: Lowpass filter to be applied to image list
+        :rtype: 2D Array of Float32
+        '''
+        
+        M,N = self.shape
+        H = np.zeros((M,N), dtype=np.float32)
+
+        for u in range(M):
+            for v in range(N):
+                D = np.sqrt((u-M/2)**2 + (v-N/2)**2)
+                H[u,v] = 1 / (1 + (D/D0_low)**(2*n_low))
+        return H
+    
+    def highpass(self, D0_high, n_high):
+        '''
+        
+        :returns: Highpass filter to be applied to image list
+        :rtype: 2D Array of Float32
+        '''
+        
+        M,N = self.shape
+        H = np.zeros((M,N), dtype=np.float32)
+
+        for u in range(M):
+            for v in range(N):
+                D = np.sqrt((u-M/2)**2 + (v-N/2)**2)
+                H[u,v] = 1 / (1 + (D0_high/D)**(2*n_high))
+        return H
+    
+    def bandpass(self, D0_low, D0_high, n_low, n_high):
+        low = self.lowpass(D0_low, n_low)
+        high = self.highpass(D0_high, n_high)
+        
+        band = low + high
+        return band
+    
 
 
 if __name__ == '__main__':

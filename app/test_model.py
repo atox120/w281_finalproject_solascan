@@ -14,7 +14,8 @@ if __name__ == '__main__':
     defect = (DefectViewer(row_chop=25, col_chop=25) << (
                 ImageLoader(defect_class='FrontGridInterruption') << n_samples))
     defect.category = 'FrontGridInterruption'
-    clean = (DefectViewer(row_chop=25, col_chop=25) << (ImageLoader(defect_class='None') << n_samples))
+    clean = (DefectViewer(row_chop=25, col_chop=25) << (ImageLoader(defect_class='FrontGridInterruption', is_not=True)
+                                                        << n_samples))
     clean.category = 'None'
 
     params = {'seed': 14376, 'n_estimators': 300, 'max_depth': 4, 'learning_rate': 0.1, 'pca_dims': 160,
