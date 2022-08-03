@@ -752,9 +752,15 @@ class VectorClassifier:
         images = np.stack(test_df.images, axis=0)
         response = np.stack(test_df.response, axis=0)
 
+        # This is the location where None's exist
+        y_none = response[:, self.defect_classes.index('None')]
+
         accum_act = []
         accum_pred = []
         accum_scores = []
+        accum_none_scores = []
+        accum_none_act = []
+        accum_none_pred = []
         for model, model_columns, model_classes, model_data_handler in \
                 zip(self.models, self.model_columns, self.model_classes, self.model_data_handlers):
             # Actual data
@@ -767,20 +773,28 @@ class VectorClassifier:
             y_pred = model.predict(x_pred)
             accum_pred.append(y_pred)
 
-            # Accumulate the score for each model
+            # Accumulate the score for each model on all data
             score = balanced_accuracy_score(y_act, y_pred)
             accum_scores.append(score)
+
+            index = np.logical_or(y_act, y_none)
+            score = balanced_accuracy_score(y_act[index], y_pred[index])
+
+            accum_none_scores.append(score)
+            accum_none_act.append(y_act[index])
+            accum_none_pred.append(y_pred[index])
 
         # Scores
         results = {}
         total_score = balanced_accuracy_score(np.concatenate(accum_act), np.concatenate(accum_pred))
-        print('Overall', total_score)
-        results['Overall'] = total_score
+        total_none_score = balanced_accuracy_score(np.concatenate(accum_none_act), np.concatenate(accum_none_pred))
+        results['Overall'] = (total_score, total_none_score)
 
-        for model_classes, score in zip(self.model_classes, accum_scores):
-            print(model_classes, score)
-            results[model_classes] = score
+        for model_classes, score, none_score in zip(self.model_classes, accum_scores, accum_none_scores):
+            print(model_classes, score, none_score)
+            results[model_classes] = (score, none_score)
 
+        print(results)
         return results
 
 

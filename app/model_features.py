@@ -19,7 +19,7 @@ def get_samples(defect_classes, num_samples, complimentary=True):
     defect_class = defect_classes
     defect = (DefectViewer(row_chop=15, col_chop=15) <<
               (ImageLoader(defect_class=defect_class, seed=20) << num_samples))
-    defect.category = 'GridInterruption'
+    defect.category = str(defect_classes)
 
     # Make the other teh same length as the defect
     num_samples = len(defect)
@@ -27,11 +27,10 @@ def get_samples(defect_classes, num_samples, complimentary=True):
     # Get the not this defect
     if complimentary:
         not_defect = (DefectViewer(row_chop=15, col_chop=15) << (
-                    ImageLoader(defect_class=defect_class, is_not=True) << num_samples * 2))
+                ImageLoader(defect_class=defect_class, is_not=True) << num_samples * 2))
         not_defect.category = 'Others'
     else:
-        not_defect = (DefectViewer(row_chop=15, col_chop=15) << (
-                ImageLoader(defect_class='None') << num_samples * 2))
+        not_defect = (DefectViewer(row_chop=15, col_chop=15) << (ImageLoader(defect_class='None') << num_samples * 2))
         not_defect.category = 'None'
 
     # Create a copy of the defect
@@ -43,6 +42,25 @@ def get_samples(defect_classes, num_samples, complimentary=True):
     # ELiminate any defect images that are in not defect
     not_defect = not_defect - defect_
     return defect, not_defect
+
+
+def get_data_handler(defect_classes):
+    if 'FrontGridInterruption' in defect_classes:
+        print('model_features.grid_interruption')
+        data_handler = grid_interruption
+    elif 'Closed' in defect_classes:
+        print('model_features.closed')
+        data_handler = closed
+    elif 'Isolated' in defect_classes:
+        print('model_features.isolated')
+        data_handler = isolated
+    elif 'BrightSpot' in defect_classes or 'Corrosion' in defect_classes:
+        print('model_features.generic_return')
+        data_handler = generic_return
+    else:
+        raise KeyError('Unsupported model type')
+
+    return data_handler
 
 
 def grid_interruption(in_imw, num_jobs=20):

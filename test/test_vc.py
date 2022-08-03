@@ -34,6 +34,7 @@ def _get_models(model_defect_classes, model_params, num_samples, complimentary):
     model_data_handlers = []
     # For each defect class, create the DataSet
     for defect_classes in model_defect_classes:
+        print(defect_classes)
         model_param = model_params[defect_classes]
 
         # Get the samples for the model
@@ -77,7 +78,7 @@ def run():
 
     # Analyzing which defect
     model_defect_classes = [('FrontGridInterruption', 'NearSolderPad'), 'Closed', 'Isolated', 'BrightSpot',
-                            'Corrosion', 'ResistiveCrack']
+                            'Corrosion', 'Resistive']
     model_params = {('FrontGridInterruption', 'NearSolderPad'):
                     {'class': GradientBoostingClassifier, 'n_estimators': 600, 'max_depth': 4,
                      'learning_rate': 0.05, 'pca_dims': min(250, num_samples)},
@@ -86,7 +87,7 @@ def run():
                                  'learning_rate': 0.1, 'pca_dims': min(160, num_samples)},
                     'BrightSpot': {'class': LogisticRegression, 'penalty': 'l2', 'pca_dims': None},
                     'Corrosion': {'class': LogisticRegression, 'penalty': 'l2', 'pca_dims': None},
-                    'ResistiveCrack': {}}
+                    'Resistive':  {'max_features': 0.1, 'min_samples_split': 8, 'random_state': 32}}
 
     model_objects, model_classes, model_data_handlers = \
         _get_models(model_defect_classes, model_params, num_samples, complimentary)
