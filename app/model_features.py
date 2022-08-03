@@ -71,6 +71,39 @@ def grid_interruption(in_imw, num_jobs=20):
     return return_images
 
 
+def brightspots(in_imw, num_jobs=20):
+    """
+    """
+
+    if isinstance(in_imw, ImageWrapper):
+        images = ~in_imw
+    else:
+        images = in_imw
+
+    # Re orient the images that are off by 90
+    oriented_images = Orient(num_jobs=num_jobs, do_debug=False, do_eliminate=False).apply(images)[0]
+
+    # Create a Gaussian blur kernel and Convolve 
+    gaussian_kernel = CreateKernel(kernel='gaussian', size=5, std=8).apply()
+    gaussian_images = Convolve().apply(oriented_images, gaussian_kernel)
+    
+    return_images = np.concatenate((images, gaussian_images), axis=-1)
+
+    #fourier_defect = (FFT(dim=2) << defect_blur) 
+    fft_images = FFT(dim=2).apply(gaussian_images)
+    #return_images = IFFT(mask=bandpass).apply(fft_images)
+    return_images = np.concatenate((images, fft_images[-2]), axis=-1)
+
+    if isinstance(in_imw, ImageWrapper):
+        return ImageWrapper(return_images, category=in_imw.category + '\n Brightspots - Gaussian Blur - Fourier Transform',
+                            image_labels=copy.deepcopy(in_imw.image_labels))
+
+    # The and operator con
+    return return_images
+
+
+
+
 def closed(in_imw, num_jobs=None):
     """
 
