@@ -252,7 +252,10 @@ class IFFT:
         """
 
         # 2D fourier transform
-        orig_img, fft_mag, fft_phase = fft_out
+        if len(fft_out) == 3:
+            orig_img, fft_mag, fft_phase = fft_out
+        else:
+            fft_mag, fft_phase = fft_out
 
         # FFT function returns magnitude in log scale, bring it back to linear
         fft_mag = 10 ** fft_mag
