@@ -139,7 +139,6 @@ class Classifier:
         if self.pca is not None:
             images = self.pca.transform(images)
 
-        print(images.shape)
         y_vals = self.model.predict(images)
 
         return y_vals
@@ -733,6 +732,7 @@ class VectorClassifier:
 
         self.models = model_objects
         self.model_classes = [make_iter(x) for x in model_classes]
+        print(self.model_classes)
         self.model_data_handlers = model_data_handlers
         self.model_columns = []
         self.defect_classes = defect_classes
@@ -750,12 +750,11 @@ class VectorClassifier:
 
         # Get tht images to make the predictin on
         images = np.stack(test_df.images, axis=0)
-        print(images.shape)
         response = np.stack(test_df.response, axis=0)
-        print(response.shape)
 
         accum_act = []
         accum_pred = []
+        accum_scores = []
         for model, model_columns, model_classes, model_data_handler in \
                 zip(self.models, self.model_columns, self.model_classes, self.model_data_handlers):
             # Actual data
@@ -768,11 +767,21 @@ class VectorClassifier:
             y_pred = model.predict(x_pred)
             accum_pred.append(y_pred)
 
-            #
+            # Accumulate the score for each model
             score = balanced_accuracy_score(y_act, y_pred)
-            print(model_classes, score)
+            accum_scores.append(score)
 
-        return True
+        # Scores
+        results = {}
+        total_score = balanced_accuracy_score(np.concatenate(accum_act), np.concatenate(accum_pred))
+        print('Overall', total_score)
+        results['Overall'] = total_score
+
+        for model_classes, score in zip(self.model_classes, accum_scores):
+            print(model_classes, score)
+            results[model_classes] = score
+
+        return results
 
 
 if __name__ == "__main__":

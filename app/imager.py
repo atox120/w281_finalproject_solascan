@@ -58,6 +58,9 @@ class ImageLoader:
         self.train_files_df = pd.read_csv("../data/train.csv")
         self.test_files_df = pd.read_csv("../data/test.csv")
 
+        # Remove a blank PNG file
+        self.annotations_df = self.annotations_df[self.annotations_df['filename'] != 'M9009C060001.png']
+
         # These are annotations for all files
         self.all_annotations = self.annotations_df.groupby('defect_class')['filename'].unique().to_dict()
 
