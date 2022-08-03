@@ -8,7 +8,7 @@ from collections.abc import Iterable
 from sklearn.decomposition import PCA
 from sklearn.metrics import balanced_accuracy_score
 from sklearn.model_selection import train_test_split
-from app.utils import ImageWrapper
+from app.utils import ImageWrapper, make_iter
 
 
 class Classifier:
@@ -65,7 +65,7 @@ class Classifier:
 
         return defect, not_defect
 
-    def _apply_pca(self, pca_dims, x_train, x_cv):
+    def _apply_pca(self, pca_dims, x_train, x_cv=None):
         """
         Get the desired number of dimensions from the data
         """
@@ -77,7 +77,8 @@ class Classifier:
             x_train = self.pca.fit_transform(x_train)
 
             # Transform the CV data
-            x_cv = self.pca.transform(x_cv)
+            if x_cv is not None:
+                x_cv = self.pca.transform(x_cv)
         return x_train, x_cv
 
     def misclassified(self):
@@ -131,7 +132,9 @@ class Classifier:
         :param images:
         :return:
         """
-        images = ~images
+        if isinstance(images, ImageWrapper):
+            images = ~images
+
         images = images.reshape((images.shape[0], -1))
         if self.pca is not None:
             images = self.pca.transform(images)
@@ -141,7 +144,7 @@ class Classifier:
 
         return y_vals
 
-    def fit(self, **params):
+    def fit_cv(self, **params):
         """
         1. Apply the params to the data_class and model_class a
         2. Apply PCA
@@ -219,13 +222,69 @@ class Classifier:
 
         return score
 
+    def fit(self, **params):
+        """
+        1. Apply the params to the data_class and model_class a
+        2. Apply PCA
+        3. Train the model
+        """
+
+        try:
+            pca_dims = params['pca_dims']
+            del params['pca_dims']
+        except KeyError:
+            pca_dims = None
+
+        # Get the data as numpy array
+        pre_defect = ~self.defect
+        pre_not_defect = ~self.not_defect
+        # These are the values to reshape the images back to
+        self.reshape_pre = pre_defect.shape[1:]
+
+        x_vals = np.vstack((pre_defect, pre_not_defect))
+        self.pre_transform = x_vals
+
+        # This is where the Data object class is applied
+        defect, not_defect = self._process_data(params)
+
+        # The remaining parameters go into the model class
+        self.model = self.model_class(**params)
+        self.image_labels = np.array(defect.image_labels + not_defect.image_labels)
+
+        # Get the data as numpy array
+        defect = ~defect
+        not_defect = ~not_defect
+
+        # Flatten the image and convert into X array
+        defect = defect.reshape((defect.shape[0], -1))
+        not_defect = not_defect.reshape((not_defect.shape[0], -1))
+        x_vals = np.vstack((defect, not_defect))
+        self.post_transform = x_vals
+
+        # Add indices for referencing later
+        x_vals = np.hstack((np.arange(x_vals.shape[0])[:, np.newaxis], x_vals))
+
+        # Flatten the image and convert into y array
+        y_defect = np.ones((defect.shape[0],)).astype(int)
+        y_not_defect = np.zeros((not_defect.shape[0],)).astype(int)
+        y_train = np.concatenate((y_defect, y_not_defect))
+
+        # Apply the PCA to the train set and transform the cv set too
+        x_train, _ = self._apply_pca(pca_dims, x_vals[:, 1:])
+
+        # Fit the model for the train data
+        self.model.fit(x_train, y_train)
+
+        return self
+
 
 def get_output_shape(model, image_dim):
     return model(torch.rand(*image_dim)).data.shape
 
 
 class CNN(nn.Module):
-    def __init__(self, num_output_classes, channels=((1, 5), (20, 3), (20, 3)), input_shape=(1, 1, 174, 174)):
+    def __init__(self, num_output_classes, channels=((1, 5), (20, 3), (20, 3)), input_shape=(1, 1, 174, 174),
+                 dense_layers=(300, 300)):
         # call the parent constructor
         super(CNN, self).__init__()
 
@@ -244,18 +303,19 @@ class CNN(nn.Module):
             output_shape = get_output_shape(self.layers[-1], output_shape)
             in_channel = out_channel
 
-        in_layers = int(np.prod(output_shape))
-        out_layers = math.ceil(in_layers / 10)
+        in_layer = int(np.prod(output_shape))
 
         # Add a flatten layer
         self.layers.append(nn.Flatten())
 
         # Two layers of output
-        self.layers.append(nn.Linear(in_features=in_layers, out_features=out_layers))
-        self.layers.append(nn.ReLU())
+        for out_layer in dense_layers:
+            self.layers.append(nn.Linear(in_features=in_layer, out_features=out_layer))
+            self.layers.append(nn.ReLU())
+            in_layer = out_layer
 
         # initialize our softmax classifier
-        self.layers.append(nn.Linear(in_features=out_layers, out_features=num_output_classes))
+        self.layers.append(nn.Linear(in_features=in_layer, out_features=num_output_classes))
         self.layers.append(nn.LogSoftmax(dim=1))
 
     def forward(self, x):
@@ -659,6 +719,60 @@ class ModelNN:
         score = balanced_accuracy_score(y_cv, y_pred)
 
         return score
+
+
+class VectorClassifier:
+    def __init__(self, model_objects, model_classes,  model_data_handlers, defect_classes):
+        """
+
+        :param model_objects: List of pre-trained model objects
+        :param model_classes: These are the defect classes the models were trained for, each model can represent
+                              multiple defect classes
+        :param defect_classes: This is the order in which the DataFrame vectors will be stored
+        """
+
+        self.models = model_objects
+        self.model_classes = [make_iter(x) for x in model_classes]
+        self.model_data_handlers = model_data_handlers
+        self.model_columns = []
+        self.defect_classes = defect_classes
+
+        # These are the models each class covers
+        # Some models cover more than one class
+        for each_model_classes in self.model_classes:
+            columns = [defect_classes.index(x) for x in each_model_classes]
+            self.model_columns.append(columns)
+
+    def test(self, test_df):
+        """"
+
+        """
+
+        # Get tht images to make the predictin on
+        images = np.stack(test_df.images, axis=0)
+        print(images.shape)
+        response = np.stack(test_df.response, axis=0)
+        print(response.shape)
+
+        accum_act = []
+        accum_pred = []
+        for model, model_columns, model_classes, model_data_handler in \
+                zip(self.models, self.model_columns, self.model_classes, self.model_data_handlers):
+            # Actual data
+            # Find the max(presence) across all columns
+            y_act = response[:, model_columns].max(axis=1)
+            accum_act.append(y_act)
+
+            # Make a prediction
+            x_pred = model_data_handler(images)
+            y_pred = model.predict(x_pred)
+            accum_pred.append(y_pred)
+
+            #
+            score = balanced_accuracy_score(y_act, y_pred)
+            print(model_classes, score)
+
+        return True
 
 
 if __name__ == "__main__":

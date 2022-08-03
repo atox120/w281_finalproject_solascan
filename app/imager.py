@@ -21,7 +21,7 @@ class ImageLoader:
 
     """
 
-    def __init__(self, shuffle=True, defect_class=None, is_not=False):
+    def __init__(self, shuffle=True, defect_class=None, is_not=False, do_train=True, seed=1234):
         """
 
         :param shuffle: Shuffle the samples before
@@ -32,6 +32,8 @@ class ImageLoader:
         self.shuffle = shuffle
         self.defect_class = defect_class
         self.is_not = is_not
+        self.do_train = do_train
+        self.seed = seed
 
         # Where the processed annotations csv file is stored.
         # if running windows, we need to change the backslashes to forward slashes. 
@@ -93,14 +95,18 @@ class ImageLoader:
         self.cv_files_df = pd.DataFrame()
         self.sample_df = pd.DataFrame()
 
-        # Keep only rows with train data
-        self.main_df = self.annotations_df.merge(self.train_files_df, on='filename', how='inner')
-        self.test_df = self.annotations_df.merge(self.test_files_df, on='filename', how='inner')
+        if do_train:
+            # Keep only rows with train data
+            self.main_df = self.annotations_df.merge(self.train_files_df, on='filename', how='inner')
+        else:
+            self.main_df = self.annotations_df.merge(self.test_files_df, on='filename', how='inner')
 
         self.main_df['sno'] = list(range(0, self.main_df.shape[0]))
 
         # List of all defect classes
+        # Keep them in order
         self.defect_classes = self.annotations_df['defect_class'].unique().tolist()
+        self.defect_classes = np.sort(self.defect_classes)
 
         # Count of each class in complete dataset.
         self.instance_count = dict(self.annotations_df['defect_class'].value_counts())
@@ -159,6 +165,40 @@ class ImageLoader:
 
         return self.instance_count[defect_class]
 
+    def get(self, n=1E8):
+        """
+        Get the data as
+        :return:
+        """
+
+        # We want to oragnize this in order of filenames
+        df = self.load_n(n=int(n), shuffle=self.shuffle, defect_classes=self.defect_class, is_not=self.is_not)
+        grouped_df = df.groupby('filename')
+
+        # For each file extract a vector of
+        accum = []
+        filename_df = df.groupby('filename').head(1)
+        for filename in filename_df['filename']:
+            # Group the defects into a list
+            group_defects = grouped_df.get_group(filename)['defect_class'].tolist()
+
+            #
+            out = []
+            for x in self.defect_classes:
+                if x in group_defects:
+                    out.append(1)
+                else:
+                    out.append(0)
+
+            # Add the None class at the end
+            accum.append({'filename': filename, 'response': np.array(out)})
+
+        # Convert the list into  DataFrame and then merge with filename_df
+        accum = pd.DataFrame(accum)
+        filename_df = filename_df.merge(accum, on='filename')
+
+        return filename_df
+
     def load_n(self, n, shuffle=True, defect_classes=None, is_not=None):
         """
         Loads n images and returns a DataFrame with following schema:
@@ -198,7 +238,7 @@ class ImageLoader:
 
         # Shuffle if required
         if shuffle:
-            self.main_df = self.main_df.sample(frac=1)
+            self.main_df = self.main_df.sample(frac=1, random_state=self.seed)
         else:
             self.main_df = self.main_df.sort_values(by='sno')
 
@@ -219,11 +259,14 @@ class ImageLoader:
             self.sample_df = self.sample_df[self.sample_df['defect_class'].isin(defect_classes)]
 
         # Filter to get n instances.
-        self.sample_df = self.sample_df.sample(frac=1)
+        self.sample_df = self.sample_df.sample(frac=1, random_state=self.seed+7)
         self.sample_df = self.sample_df.head(n)
 
         # Add the location of the files to read from
-        self.sample_df['fileloc'] = [os.path.join(self.train_file_loc, x) for x in self.sample_df['filename']]
+        if self.do_train:
+            self.sample_df['fileloc'] = [os.path.join(self.train_file_loc, x) for x in self.sample_df['filename']]
+        else:
+            self.sample_df['fileloc'] = [os.path.join(self.test_file_loc, x) for x in self.sample_df['filename']]
 
         return self.sample_df
 
@@ -251,6 +294,23 @@ class DefectViewer:
         return ImageWrapper(self.shift_image_load(sample_df, self.resize_shape, (self.row_chop, self.col_chop)),
                             image_labels=sample_df['filename'].tolist(),
                             category='original', )
+
+    def get(self, filename_df):
+        """
+
+        :param filename_df:
+        :return:
+        """
+        resize_shape = self.resize_shape
+        chop = (self.row_chop, self.col_chop)
+
+        images = [cv2.cvtColor(cv2.imread(x), cv2.COLOR_BGR2GRAY) for x in filename_df['fileloc']]
+        images = [cv2.resize(x, resize_shape, interpolation=cv2.INTER_CUBIC) for x in images]
+        images = [x[chop[1]:-(chop[1] + 1), chop[0]:-(chop[0] + 1)] for x in images]
+
+        filename_df['images'] = images
+
+        return filename_df
 
     @staticmethod
     def shift_image_load(in_df_filename_or_list, resize_shape=(224, 224), chop=(0, 0)):
@@ -566,7 +626,6 @@ class Show:
         # Number of cols and number of rows
         n_cols = len(in_imgs)
         self.num_images = in_imgs[0].shape[0] if self.num_images is None else self.num_images
-
         n_rows = min(in_imgs[0].shape[0], self.num_images)
         fig = plt.figure(figsize=(6.4 * n_cols, 4.8 * n_rows))
 

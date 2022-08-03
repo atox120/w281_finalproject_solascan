@@ -1,10 +1,9 @@
 import copy
 import math
 import threading
+import numpy as np
 from collections.abc import Iterable
 from multiprocessing import Process, Pipe
-
-import numpy as np
 
 
 class ImageWrapper:
