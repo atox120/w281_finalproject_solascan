@@ -259,7 +259,7 @@ class ImageLoader:
             self.sample_df = self.sample_df[self.sample_df['defect_class'].isin(defect_classes)]
 
         # Filter to get n instances.
-        self.sample_df = self.sample_df.sample(frac=1)
+        self.sample_df = self.sample_df.sample(frac=1, random_state=self.seed+7)
         self.sample_df = self.sample_df.head(n)
 
         # Add the location of the files to read from
