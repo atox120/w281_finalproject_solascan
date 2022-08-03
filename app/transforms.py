@@ -508,13 +508,13 @@ class PCA:
 
         :return:
         """
-
+        self.return_out_matrix = False
         self.transpose = transpose
         self.params = {}
         self.explained_variance = []
         self.explained_variance_ratio = []
         self.eigenfaces = []
-
+        
         input_check(kwargs, 'n_components', None, self.params, exception=True)
         input_check(kwargs, 'copy', True, self.params, exception=False)
         input_check(kwargs, 'whiten', False, self.params, exception=False)
@@ -586,13 +586,15 @@ class PCA:
 
         return x_out
 
-    def apply(self, in_imgs):
+    def apply(self, in_imgs, return_out_matrix=False):
         """
         If the transpose method is specified, it transforms the image and applies the
         transform by calling the pca_transform() function. Else, we perform the 
         pca_transform() in a loop for each image. 
 
         """
+        
+        self.return_out_matrix = return_out_matrix
         #Instantiate scaler instance for zero mean transform
         scaler = StandardScaler()
         
@@ -624,8 +626,11 @@ class PCA:
                 out_list.append(scaler.inverse_transform(out_matrix))
             
             out_imgs = np.stack(out_list, axis=0)
-
-        return out_imgs
+        
+        if self.return_out_matrix: 
+            return out_imgs, out_matrix
+        else:
+            return out_imgs
     
 class Butterworth:
     '''
