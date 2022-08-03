@@ -849,11 +849,11 @@ class ThresholdMultiotsu:
         """
         self.levels = []
         
-        if 'n_classes' in kwargs:
-            self.n_classes = kwargs['n_classes']
-            del kwargs['n_classes']
+        if 'classes' in kwargs:
+            self.classes = kwargs['classes']
+            del kwargs['classes']
         else:
-            self.n_classes = 3
+            self.classes = 3
             
         if 'threshold' in kwargs:
             self.threshold = kwargs['threshold']
@@ -888,7 +888,7 @@ class ThresholdMultiotsu:
         out_img = self.apply(in_imw.images)
 
         # If it is the output of a different function then take the last value in the tuple
-        category = f'\n Multi-Otsu threshold filter into {self.n_classes} classes'
+        category = f'\n Multi-Otsu threshold filter into {self.classes} classes'
         if self.params:
             category += f' and params: {self.params}'
         category = in_imw.category + line_split_string(category)
@@ -906,11 +906,11 @@ class ThresholdMultiotsu:
         out_list = []
         
         self.check_thresholds()
-        
+
         for img in in_imgs:
             
             # Get thresholds and save
-            levels = sk_threshold_multiotsu(img, **self.params)
+            levels = sk_threshold_multiotsu(img,classes=self.classes, **self.params)
             self.levels.append(levels)
             
             # apply thresholding to image
@@ -928,7 +928,7 @@ class ThresholdMultiotsu:
         
         if self.threshold - 1 < 0:
             raise Exception('The selected threshold must be greater than 0.')
-        elif self.threshold >= self.n_classes:
+        elif self.threshold >= self.classes:
             raise Exception('The selected threshold must be lower than the number of classes.')
             
 
