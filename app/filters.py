@@ -317,6 +317,7 @@ class Convolve:
             # Create 2d filter and normalise
             return convolve(in_imgs, kernel, mode=self.mode, cval=self.cval)
 
+
 class Canny:
     """
     Applies a canny filter to the image
@@ -908,11 +909,11 @@ class ThresholdMultiotsu:
         
         for img in in_imgs:
             
-            #Get thresholds and save
+            # Get thresholds and save
             levels = sk_threshold_multiotsu(img, **self.params)
             self.levels.append(levels)
             
-            #apply thresholding to image
+            # apply thresholding to image
             if self.digitize:
                 out_list.append(np.digitize(img, bins=levels))
             else:
@@ -930,8 +931,6 @@ class ThresholdMultiotsu:
         elif self.threshold >= self.n_classes:
             raise Exception('The selected threshold must be lower than the number of classes.')
             
-            
-
 
 if __name__ == '__main__':
 

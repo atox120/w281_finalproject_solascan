@@ -68,8 +68,6 @@ class Orient:
                 accum_imgs.append(img)
                 accum_hogs.append(hog)
 
-        print(np.sum(rotate))
-
         out_imgs = np.stack(accum_imgs, axis=0)
         out_hogs = np.stack(accum_hogs, axis=0)
 
@@ -132,11 +130,11 @@ class RemoveBusBars:
         else:
             self.hog_ratio = 4
 
-        if 'zero_bars' in kwargs:
-            self.zero_bars = kwargs['zero_bars']
-            del kwargs['zero_bars']
+        if 'replace_type' in kwargs:
+            self.replace_type = kwargs['replace_type']
+            del kwargs['replace_type']
         else:
-            self.zero_bars = False
+            self.replace_type = 'copy'
 
         if 'keep_bars' in kwargs:
             self.keep_bars = kwargs['keep_bars']
@@ -215,11 +213,10 @@ class RemoveBusBars:
         sig_threshold_hog = Exposure(mode='sigmoid', cutoff=self.sigmoid_cutoff).apply(thresh_hog)
 
         # Shake the HOG
-        shaken_hog = sig_threshold_hog + \
-            np.roll(sig_threshold_hog, shift=-1, axis=-1) + np.roll(sig_threshold_hog, shift=1, axis=-1) + \
-            np.roll(sig_threshold_hog, shift=-2, axis=-1) + np.roll(sig_threshold_hog, shift=2, axis=-1) + \
-            np.roll(sig_threshold_hog, shift=-3, axis=-1) + np.roll(sig_threshold_hog, shift=3, axis=-1) + \
-            np.roll(sig_threshold_hog, shift=-4, axis=-1) + np.roll(sig_threshold_hog, shift=4, axis=-1)
+        shaken_hog = sig_threshold_hog
+        for shift in range(1, 3):
+            shaken_hog += np.roll(sig_threshold_hog, shift=-shift, axis=-1) + \
+                          np.roll(sig_threshold_hog, shift=shift, axis=-1)
         shaken_hog = shaken_hog + np.roll(shaken_hog, shift=1, axis=-2) + np.roll(shaken_hog, shift=-1, axis=-2)
 
         # Stretch the final HOG to fit 0 to 1
@@ -239,9 +236,14 @@ class RemoveBusBars:
         final_hog = self.get_hog_mask(in_hogs)
 
         # Now shake the images
-        if not self.zero_bars:
+        if self.replace_type == 'copy':
             out_imgs = (1 - final_hog) * in_imgs + final_hog * (
                     np.roll(in_imgs, shift=10, axis=-2) + np.roll(in_imgs, shift=-10, axis=-2)) / 2
+        elif self.replace_type == 'average':
+            avg = ((np.roll(in_imgs, shift=10, axis=-2) + np.roll(in_imgs, shift=-10, axis=-2))/2).mean(axis=(-2, -1))
+            avg = avg[:, np.newaxis, np.newaxis]
+
+            out_imgs = (1 - final_hog) * in_imgs + final_hog * avg
         else:
             if self.keep_bars:
                 out_imgs = final_hog * in_imgs
@@ -507,7 +509,7 @@ class HighlightFrontGrid:
         """
 
         #  Remove the bus bars from the data
-        nobus_images = RemoveBusBars(num_jobs=self.num_jobs).apply(in_imgs)
+        nobus_images = RemoveBusBars(num_jobs=self.num_jobs, replace_type='average').apply(in_imgs)
 
         # Make the exposire daptive to highlight the bars
         exposure = Exposure('adaptive').apply(nobus_images)

@@ -2,27 +2,25 @@ import cv2
 import copy
 import numpy as np
 from collections.abc import Iterable
-
 from sklearn.decomposition import PCA as SKPCA
 from sklearn.preprocessing import StandardScaler
 from scipy.ndimage import convolve as sc_convolve
-
-from app.imager import ImageLoader, DefectViewer, Show, input_check, line_split_string
+from app.imager import ImageLoader, DefectViewer, Show
 from app.utils import input_check, ImageWrapper, line_split_string
 from app.filters import CreateKernel
 
 
-class maskedFFT():
-    
+class MaskedFFT:
+
     def __init__(self, mask, axis=(-2, -1), window=True):
         """
 
-         :param dim:
+         :param mask:
          :param axis: Which dimension(s) to perform FFT on.
                 When dim is 2 then axis should be a tuple. Default is the last two dimensions.
                 When dim is 1 then axis should be an integer dimension.
         """
-        
+
         self.mask = mask
         self.window = window
         self.dim = 2
@@ -30,7 +28,7 @@ class maskedFFT():
         if self.dim == 1:
             if isinstance(axis, Iterable):
                 raise TypeError('A single dimension FFT can only be done on one axis')
-                
+
     def __lshift__(self, in_imw):
         """
         """
@@ -52,7 +50,7 @@ class maskedFFT():
 
     def apply(self, in_imgs):
         # Create a window function
-        
+
         if self.window:
             win = self.create_window(in_imgs)
         else:
@@ -67,10 +65,10 @@ class maskedFFT():
         for _ in range(len(in_imgs.shape) - 2):
             self.mask = self.mask[np.newaxis, :]
         masked = magnitude * self.mask
-        
+
         # Apply the inverse transform
         out_imgs = IFFT().apply((in_imgs, masked, phase))
-        
+
         return out_imgs
 
     @staticmethod
@@ -112,7 +110,7 @@ class FFT:
                 When dim is 2 then axis should be a tuple. Default is the last two dimensions.
                 When dim is 1 then axis should be an integer dimension.
         """
-        
+
         self.window = window
         self.window_kernel = window_kernel
         self.dim = dim
@@ -149,11 +147,15 @@ class FFT:
 
     def apply(self, in_imgs):
         # Create a window function
-        
+
         if self.window == 'Hanning':
             win = self.create_window(in_imgs)
         elif self.window == 'custom':
-            pass
+            win = self.window_kernel
+        else:
+            win = np.ones((in_imgs.shape[-2], in_imgs.shape[-1]))
+            for _ in range(len(in_imgs.shape) - 2):
+                win = win[np.newaxis, :]
 
         if self.dim == 2:
             out_tuples = self.fft2(in_imgs, win)
@@ -269,62 +271,66 @@ class IFFT:
 
 
 class DownsampleBlur:
-    
+
     def __init__(self, consume_kwargs=True, **kwargs):
         """
         Method to downsample an image, apply a gaussian blur 
         and then upscale the image again. 
         
         :param downsample_factor: Factor by which the original image is downsampled. 
-        :param interpolation_method: the cv2 method by which the interpolation of neighbouring pixels is interpolated during resizing of the image. see https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html default is cubic. 
+        :param interpolation_method: the cv2 method by which the interpolation of neighbouring pixels is interpolated
+            during resizing of the image. see https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html
+            default is cubic.
         :param size: size of the 2D gaussian kernel used in blurring.
         :param sigma: standard deviation of the gaussian kernel.
         :param edge_mode: method of dealing with edges when convolving. 
         
         """
-        
+
         if 'downsample_factor' in kwargs:
             self.downsample_factor = kwargs['downsample_factor']
             del kwargs['downsample_factor']
         else:
             self.downsample_factor = 4
-            
+
         if 'interpol_method_down' in kwargs:
             self.interpol_method_down = kwargs['interpol_method_down']
             del kwargs['interpol_method_down']
         else:
             self.interpol_method_down = 'nearest'
-            
+
         if 'interpol_method_up' in kwargs:
             self.interpol_method_up = kwargs['interpol_method_up']
             del kwargs['interpol_method_up']
         else:
             self.interpol_method_up = 'cubic'
-        
+
         if 'size' in kwargs:
             self.size = kwargs['size']
             del kwargs['size']
         else:
             self.size = 21
-            
+
         if 'sigma' in kwargs:
             self.sigma = kwargs['sigma']
             del kwargs['sigma']
         else:
             self.sigma = 5
-            
+
         if 'edge_mode' in kwargs:
             self.edge_mode = kwargs['edge_mode']
             del kwargs['edge_mode']
         else:
             self.edge_mode = "reflect"
-        
+
+        if consume_kwargs and kwargs:
+            raise KeyError(f'Unused keyword(s) {kwargs.keys()}')
+
         self.params = {}
-            
+
     def __lshift__(self, in_imw):
 
         if isinstance(in_imw, tuple):
-            transformed = in_imw[-1]
             in_imw = in_imw[0]
 
         out_img = self.apply(in_imw.images)
@@ -338,7 +344,7 @@ class DownsampleBlur:
         out_imw = ImageWrapper(out_img, category=category, image_labels=copy.deepcopy(in_imw.image_labels))
 
         return in_imw, out_imw
-    
+
     def apply(self, in_imgs):
         """
         Wrapper to apply function, standardises syntax. 
@@ -347,40 +353,39 @@ class DownsampleBlur:
         out_imgs = self.downsample_blur(in_imgs)
 
         return out_imgs
-    
+
     def downsample_blur(self, in_imgs):
         """
         downsamples and blurs the image using a gaussian kernel.
         """
-        
+
         out_list = []
-        
+
         # Get original downsampled dimensions
         original_size = in_imgs.shape[1:3]
         reduced_size = tuple(np.array(original_size) // self.downsample_factor)
         down_method = self.parse_interpolation(self.interpol_method_up)
         up_method = self.parse_interpolation(self.interpol_method_up)
-        
-        #loop through each image
+
+        # loop through each image
         for img in in_imgs:
-    
             # downsample then upsample
             small_img = cv2.resize(img, reduced_size, interpolation=down_method)
             sampled_img = cv2.resize(small_img, original_size, interpolation=up_method)
 
             # blur the image
-            gaussian_kernel = CreateKernel(kernel='gaussian',size=self.size, std=self.sigma)
+            gaussian_kernel = CreateKernel(kernel='gaussian', size=self.size, std=self.sigma)
             downsample_blur_img = sc_convolve(sampled_img, gaussian_kernel.kernel_val, mode=self.edge_mode)
-            
+
             # Append out.
             out_list.append(downsample_blur_img)
-        
+
         out_imgs = np.stack(out_list, axis=0)
-        
+
         return out_imgs
-            
-        
-    def parse_interpolation(self, method):
+
+    @staticmethod
+    def parse_interpolation(method):
         """
         parses the interpolation method used during resizing. See:
         https://docs.opencv.org/4.x/da/d54/group__imgproc__transform.html
@@ -392,7 +397,7 @@ class DownsampleBlur:
             return cv2.INTER_NEAREST
         elif method == 'linear':
             return cv2.INTER_LINEAR
-    
+
 
 class CreateOnesMask:
     def __init__(self, in_imgs):
@@ -413,7 +418,7 @@ class CreateOnesMask:
         left = self.center[0] - left_width
         width = left_width + right_width
 
-        self.offset_box(left, top, width, height, val)
+        return self.offset_box(left, top, width, height, val)
 
     def vertical_from_center(self, top_height, bottom_height, width, val=0):
         """
@@ -425,7 +430,7 @@ class CreateOnesMask:
         top = self.center[1] - top_height
         height = top_height + bottom_height
 
-        self.offset_box(left, top, width, height, val)
+        return self.offset_box(left, top, width, height, val)
 
     def center_box(self, width, height, val=0):
         """
@@ -436,14 +441,18 @@ class CreateOnesMask:
         # Get the top left corner relative to center
         left = self.center[0] - int(width / 2)
         top = self.center[1] - int(height / 2)
-        self.offset_box(left, top, width, height, val)
+
+        return self.offset_box(left, top, width, height, val)
 
     def offset_box(self, left, top, width, height, val=0):
         """
 
         :return:
         """
+
         self.mask[left:left + width, top:top + height] = val
+
+        return self.mask
 
     def center_circle(self, radius, inside=True, val=0):
         """
@@ -457,7 +466,7 @@ class CreateOnesMask:
         center_x = self.circle_center[0]
         center_y = self.circle_center[1]
 
-        self.offset_circle(center_x, center_y, radius, inside, val)
+        return self.offset_circle(center_x, center_y, radius, inside, val)
 
     def offset_circle(self, center_x, center_y, radius, inside=True, val=0):
         """
@@ -480,6 +489,8 @@ class CreateOnesMask:
         y = y[index]
 
         self.mask[x, y] = val
+
+        return self.mask
 
 
 class PCA:
@@ -559,28 +570,30 @@ class PCA:
         pca_ = SKPCA(**self.params)
         x_new = pca_.fit_transform(in_imgs)
         x_out = pca_.inverse_transform(x_new)
-        
-        #Store the explained variance
-        # see https://github.com/scikit-learn/scikit-learn/blob/baf0ea25d6dd034403370fea552b21a6776bef18/sklearn/decomposition/_pca.py#L236-L249
+
+        # Store the explained variance
+        # see https://github.com/scikit-learn/scikit-learn/blob/baf0ea25d6dd034403370fea552b21a6776bef18/
+        # sklearn/decomposition/_pca.py#L236-L249
+
         self.explained_variance.append(pca_.explained_variance_)
         self.explained_variance_ratio.append(pca_.explained_variance_ratio_)
-        
-        ## Get Eigen faces
+
+        #  Get Eigen faces
         # parse dimensions
-        N = self.params['n_components']
+        n = self.params['n_components']
         if len(original_dims) == 3:
-            _, H, W = original_dims
+            _, h, w = original_dims
             # save eigenfaces  
-            eigenfaces = pca_.components_.reshape((N, H, W))
-        
+            eigenfaces = pca_.components_.reshape((n, h, w))
+
         elif len(original_dims) == 2:
-            H, W = original_dims
+            h, w = original_dims
             # save eigenfaces  
-            eigenfaces = pca_.components_.reshape((N, W))
-        
+            eigenfaces = pca_.components_.reshape((n, w))
+
         else:
             raise Exception(f"Expected 2 or 3 dimensions but got: {original_dims}")
-        
+
         # save eigenfaces  
         self.eigenfaces.append(eigenfaces)
 
@@ -593,97 +606,94 @@ class PCA:
         pca_transform() in a loop for each image. 
 
         """
-        #Instantiate scaler instance for zero mean transform
+        # Instantiate scaler instance for zero mean transform
         scaler = StandardScaler()
-        
-        if self.transpose == True:
+
+        if self.transpose:
             # Implenetation for 1 PCA call
-            #get dimensions and reshape from (N, H, W) to (N, H*W)
-            N, H, W = in_imgs.shape
-            new_matrix = in_imgs.reshape(N, H * W)
-            
+            # get dimensions and reshape from (N, H, W) to (N, H*W)
+            n, h, w = in_imgs.shape
+            new_matrix = in_imgs.reshape(n, h * w)
+
             # Zero mean the data
             scaler.fit(new_matrix)
             zero_meaned_matrix = scaler.transform(new_matrix)
-            
+
             # Call function and reshape back to (N, H, W) 
-            out_matrix = self.pca_transform(zero_meaned_matrix, (N, H, W))
-            
-            #Apply inverse transform, transpose and reshape 
-            out_imgs = scaler.inverse_transform(out_matrix).reshape(N, H, W)
-            
-        elif self.transpose == False:
-            #Implementation for 1 PCA call per image
+            out_matrix = self.pca_transform(zero_meaned_matrix, (n, h, w))
+
+            # Apply inverse transform, transpose and reshape
+            out_imgs = scaler.inverse_transform(out_matrix).reshape(n, h, w)
+        else:
+            # Implementation for 1 PCA call per image
             out_list = []
             for x in in_imgs:
-                
-                #Scale and transform the data, then apply PCA
+                # Scale and transform the data, then apply PCA
                 out_matrix = self.pca_transform(scaler.fit_transform(x), x.shape)
-                
-                #Appy inverse transform and append to list
+
+                # Appy inverse transform and append to list
                 out_list.append(scaler.inverse_transform(out_matrix))
-            
+
             out_imgs = np.stack(out_list, axis=0)
 
         return out_imgs
-    
-class Butterworth:
-    '''
-    Creats butterworth filters for FFT
-        
-    '''
-    
-    def __init__(self, in_img):
-        '''
-        
-        :param in_img: Sample (singular) image to get the shape of the filter
-        :type in_img: 2D array
 
-        '''
-        
+
+class Butterworth:
+    """
+    Creates butterworth filters for FFT
+    """
+
+    def __init__(self, in_img):
+        """
+
+        :param in_img: Sample (singular) image to get the shape of the filter
+        """
+
         self.shape = in_img.shape
 
-    
-    def lowpass(self, D0_low, n_low):
-        '''
-        
-        
-        :returns: Lowpass filter to be applied to image list
-        :rtype: 2D Array of Float32
-        '''
-        
-        M,N = self.shape
-        H = np.zeros((M,N), dtype=np.float32)
+    def lowpass(self, d0_low, n_low):
+        """
+        Lowpass filter to be applied to image list
 
-        for u in range(M):
-            for v in range(N):
-                D = np.sqrt((u-M/2)**2 + (v-N/2)**2)
-                H[u,v] = 1 / (1 + (D/D0_low)**(2*n_low))
-        return H
-    
-    def highpass(self, D0_high, n_high):
-        '''
-        
-        :returns: Highpass filter to be applied to image list
-        :rtype: 2D Array of Float32
-        '''
-        
-        M,N = self.shape
-        H = np.zeros((M,N), dtype=np.float32)
+        :param d0_low:
+        :param n_low:
+        :return: @D array of type float 32
+        """
 
-        for u in range(M):
-            for v in range(N):
-                D = np.sqrt((u-M/2)**2 + (v-N/2)**2)
-                H[u,v] = 1 / (1 + (D0_high/D)**(2*n_high))
-        return H
-    
-    def bandpass(self, D0_low, D0_high, n_low, n_high):
-        low = self.lowpass(D0_low, n_low)
-        high = self.highpass(D0_high, n_high)
+        m, n = self.shape
+        h = np.zeros((m, n), dtype=np.float32)
+
+        for u in range(m):
+            for v in range(n):
+                d = np.sqrt((u - m / 2) ** 2 + (v - n / 2) ** 2)
+                h[u, v] = 1 / (1 + (d / d0_low) ** (2 * n_low))
+        return h
+
+    def highpass(self, d0_high, n_high):
+        """
+        Highpass filter to be applied to image list
         
+        :param d0_high: 
+        :param n_high: 
+        :return: 
+        """
+
+        m, n = self.shape
+        h = np.zeros((m, n), dtype=np.float32)
+
+        for u in range(m):
+            for v in range(n):
+                d = np.sqrt((u - m / 2) ** 2 + (v - n / 2) ** 2)
+                h[u, v] = 1 / (1 + (d0_high / d) ** (2 * n_high))
+        return h
+
+    def bandpass(self, d0_low, d0_high, n_low, n_high):
+        low = self.lowpass(d0_low, n_low)
+        high = self.highpass(d0_high, n_high)
+
         band = low + high
         return band
-    
 
 
 if __name__ == '__main__':
