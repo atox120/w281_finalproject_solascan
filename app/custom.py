@@ -93,10 +93,12 @@ class Orient:
         rotated_images, rotated_hog, rotate = self.fix_orientation(hog_stretched, in_imgs, hog_exposed)
         only_rotated_images = rotated_images[rotate, :]
         only_rotated_hogs = rotated_hog[rotate, :]
+        rotate_before_images = in_imgs[rotate, :]
+        hog_before_rotation = hog_stretched[rotate, :]
 
         if do_debug:
             # Show(num_images=100).show((imgs_exposure, hog_exposed, hog_stretched))
-            Show().show((only_rotated_images, only_rotated_hogs))
+            Show().show((rotate_before_images, hog_before_rotation, only_rotated_hogs, only_rotated_images))
 
         return rotated_images, rotated_hog
 

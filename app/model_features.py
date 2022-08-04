@@ -19,7 +19,7 @@ def get_samples(defect_classes, num_samples, complimentary=True):
     defect_class = defect_classes
     defect = (DefectViewer(row_chop=15, col_chop=15) <<
               (ImageLoader(defect_class=defect_class, seed=20) << num_samples))
-    defect.category = 'GridInterruption'
+    defect.category = str(defect_classes)
 
     # Make the other teh same length as the defect
     num_samples = len(defect)
@@ -27,11 +27,10 @@ def get_samples(defect_classes, num_samples, complimentary=True):
     # Get the not this defect
     if complimentary:
         not_defect = (DefectViewer(row_chop=15, col_chop=15) << (
-                    ImageLoader(defect_class=defect_class, is_not=True) << num_samples * 2))
+                ImageLoader(defect_class=defect_class, is_not=True) << num_samples))
         not_defect.category = 'Others'
     else:
-        not_defect = (DefectViewer(row_chop=15, col_chop=15) << (
-                ImageLoader(defect_class='None') << num_samples * 2))
+        not_defect = (DefectViewer(row_chop=15, col_chop=15) << (ImageLoader(defect_class='None') << num_samples))
         not_defect.category = 'None'
 
     # Create a copy of the defect
@@ -43,6 +42,32 @@ def get_samples(defect_classes, num_samples, complimentary=True):
     # ELiminate any defect images that are in not defect
     not_defect = not_defect - defect_
     return defect, not_defect
+
+
+def get_data_handler(defect_classes):
+    if 'FrontGridInterruption' in defect_classes:
+        print('model_features.grid_interruption')
+        data_handler = grid_interruption
+    elif 'Closed' in defect_classes:
+        print('model_features.closed')
+        data_handler = closed
+    elif 'Isolated' in defect_classes:
+        print('model_features.isolated')
+        data_handler = isolated
+    elif 'BrightSpot' in defect_classes:
+        print('model_features.brightspots')
+        data_handler = brightspots
+    elif 'Corrosion' in defect_classes:
+        print('model_features.generic_return')
+        data_handler = generic_return
+    elif 'Resistive' in defect_classes:
+        print('model_features.resistive')
+        data_handler = resistive
+    else:
+        print('Y')
+        raise KeyError('Unsupported model type')
+
+    return data_handler
 
 
 def grid_interruption(in_imw, num_jobs=20):
@@ -86,22 +111,19 @@ def brightspots(in_imw, num_jobs=20):
     # Create a Gaussian blur kernel and Convolve 
     gaussian_kernel = CreateKernel(kernel='gaussian', size=5, std=8).apply()
     gaussian_images = Convolve().apply(oriented_images, gaussian_kernel)
-    
-    return_images = np.concatenate((images, gaussian_images), axis=-1)
 
-    #fourier_defect = (FFT(dim=2) << defect_blur) 
-    fft_images = FFT(dim=2).apply(gaussian_images)
-    #return_images = IFFT(mask=bandpass).apply(fft_images)
-    return_images = np.concatenate((images, fft_images[-2]), axis=-1)
+    fft_images, keep = FFT(dim=2).apply(gaussian_images, return_rejects=True)
+
+    return_images = np.concatenate((images[keep, :], fft_images[-2]), axis=-1)
 
     if isinstance(in_imw, ImageWrapper):
-        return ImageWrapper(return_images, category=in_imw.category + '\n Brightspots - Gaussian Blur - Fourier Transform',
-                            image_labels=copy.deepcopy(in_imw.image_labels))
+        image_labels = (np.array(in_imw.image_labels)[keep]).tolist()
+        return ImageWrapper(return_images,
+                            category=in_imw.category + '\n Brightspots - Gaussian Blur - Fourier Transform',
+                            image_labels=image_labels)
 
     # The and operator con
     return return_images
-
-
 
 
 def closed(in_imw, num_jobs=None):
@@ -120,11 +142,14 @@ def closed(in_imw, num_jobs=None):
     # Pipeline for Closed Cracks
     sato_filtered = Sato(sigmas=[1, 2]).apply(images)
     stretched_images = Exposure('stretch').apply(sato_filtered)
-    return_images = ThresholdMultiotsu(n_classes=4, threshold=1, digitize=False).apply(stretched_images)
+    return_images, keep = ThresholdMultiotsu(classes=4, threshold=1, digitize=False).apply(
+        stretched_images, return_rejects=True)
 
     if isinstance(in_imw, ImageWrapper):
+        # These are the indices to keep
+        image_labels = [in_imw.image_labels[x] for x in keep]
         return ImageWrapper(return_images, category=in_imw.category + '\n Closed - Preprocessed',
-                            image_labels=copy.deepcopy(in_imw.image_labels))
+                            image_labels=image_labels)
 
     return return_images
 
@@ -144,7 +169,7 @@ def isolated(in_imw, num_jobs=None):
 
     # Apply Isolated Pipeline
     inverted_images = Exposure('invert').apply(images)
-    return_images = ThresholdMultiotsu(n_classes=2).apply(inverted_images)
+    return_images, keep = ThresholdMultiotsu(classes=2).apply(inverted_images, return_rejects=True)
 
     if isinstance(in_imw, ImageWrapper):
         return ImageWrapper(return_images, category=in_imw.category + '\n Closed - Preprocessed',
@@ -172,7 +197,7 @@ def generic_return(in_imw, num_jobs=None):
     return return_images
 
 
-def resistive_crack(in_imw, num_jobs=20):
+def resistive(in_imw, num_jobs=20):
     """
 
     """
