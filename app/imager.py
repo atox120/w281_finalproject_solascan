@@ -262,6 +262,7 @@ class ImageLoader:
             self.sample_df = self.sample_df[self.sample_df['defect_class'].isin(defect_classes)]
 
         # Filter to get n instances.
+        self.sample_df = self.sample_df.groupby('filename').head(1)
         self.sample_df = self.sample_df.sample(frac=1, random_state=self.seed+7)
         self.sample_df = self.sample_df.head(n)
 
@@ -310,9 +311,9 @@ class DefectViewer:
         images = [cv2.cvtColor(cv2.imread(x), cv2.COLOR_BGR2GRAY) for x in filename_df['fileloc']]
         images = [cv2.resize(x, resize_shape, interpolation=cv2.INTER_CUBIC) for x in images]
         images = [x[chop[1]:-(chop[1] + 1), chop[0]:-(chop[0] + 1)] for x in images]
+        images = [x.astype('float64')/255.0 for x in images]
 
         filename_df['images'] = images
-
         return filename_df
 
     @staticmethod
