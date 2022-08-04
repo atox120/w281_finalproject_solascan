@@ -145,7 +145,7 @@ class FFT:
 
         return in_imw, out_imw_0, out_imw_1
 
-    def apply(self, in_imgs):
+    def apply(self, in_imgs, return_rejects=False):
         # Create a window function
 
         if self.window == 'Hanning':
@@ -162,7 +162,19 @@ class FFT:
         else:
             out_tuples = self.fft(in_imgs, win)
 
-        return out_tuples
+        index_magnitude = np.all(np.isfinite(out_tuples[-2]), axis=(-2, -1))
+        index_phase = np.all(np.isfinite(out_tuples[-1]), axis=(-2, -1))
+
+        keep = np.logical_and(index_magnitude, index_phase)
+
+        # Keep only the images that passed
+        out_tuples = (out_tuples[0][keep, :], out_tuples[1][keep, :])
+
+        if not return_rejects:
+            return out_tuples
+        else:
+            print(f'{in_imgs.shape[0] - np.sum(keep)} were rejected')
+            return out_tuples, keep
 
     @staticmethod
     def create_window(in_img):
@@ -190,6 +202,7 @@ class FFT:
 
         magnitude = np.log10(np.abs(transformed))
         phase = np.angle(transformed)
+
         return magnitude, phase
 
     # Display the fft and the image

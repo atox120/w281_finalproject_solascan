@@ -2,29 +2,11 @@ import os
 import sys
 import copy
 from sklearn.linear_model import LogisticRegression
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import GradientBoostingClassifier, ExtraTreesClassifier
 sys.path.append(os.path.join(os.path.abspath(""), ".."))
-from app import model_features
 from app.models import Classifier
-from app.model_features import get_samples
 from app.imager import ImageLoader, DefectViewer
-
-
-def get_data_handler(defect_classes):
-    if 'FrontGridInterruption' in defect_classes:
-        data_handler = model_features.grid_interruption
-    elif 'Closed' in defect_classes:
-        data_handler = model_features.closed
-    elif 'Isolated' in defect_classes:
-        data_handler = model_features.isolated
-    elif 'BrightSpot' in defect_classes or 'Corrosion' in defect_classes:
-        data_handler = model_features.generic_return
-    elif 'ResistiveCrack' in defect_classes:
-        data_handler = model_features.resistive_crack
-    else:
-        raise KeyError('Unsupported model type')
-
-    return data_handler
+from app.model_features import get_samples, get_data_handler
 
 
 def _get_models(model_defect_classes, model_params, num_samples, complimentary):
@@ -87,7 +69,8 @@ def run():
                                  'learning_rate': 0.1, 'pca_dims': min(160, num_samples)},
                     'BrightSpot': {'class': LogisticRegression, 'penalty': 'l2', 'pca_dims': None},
                     'Corrosion': {'class': LogisticRegression, 'penalty': 'l2', 'pca_dims': None},
-                    'Resistive':  {'max_features': 0.1, 'min_samples_split': 8, 'random_state': 32}}
+                    'Resistive':  {'class': ExtraTreesClassifier, 'max_features': 0.1, 'min_samples_split': 8,
+                                   'random_state': 32}}
 
     model_objects, model_classes, model_data_handlers = \
         _get_models(model_defect_classes, model_params, num_samples, complimentary)
