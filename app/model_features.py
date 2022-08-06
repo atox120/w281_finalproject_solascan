@@ -141,13 +141,17 @@ def closed(in_imw, num_jobs=None):
 
     # Pipeline for Closed Cracks
     sato_filtered = Sato(sigmas=[1, 2]).apply(images)
-    stretched_images = Exposure('stretch').apply(sato_filtered)
-    return_images, keep = ThresholdMultiotsu(classes=4, threshold=1, digitize=False).apply(
-        stretched_images, return_rejects=True)
+    return_images = Exposure('stretch').apply(sato_filtered)
+    
+    # AT Deprecated Start
+    #return_images, keep = ThresholdMultiotsu(classes=4, threshold=1, digitize=False).apply(
+    #    stretched_images, return_rejects=True)
+    # End
 
     if isinstance(in_imw, ImageWrapper):
         # These are the indices to keep
-        image_labels = [in_imw.image_labels[x] for x in keep]
+        #image_labels = [in_imw.image_labels[x] for x in keep]
+        image_labels = in_imw.image_labels
         return ImageWrapper(return_images, category=in_imw.category + '\n Closed - Preprocessed',
                             image_labels=image_labels)
 
@@ -167,10 +171,14 @@ def isolated(in_imw, num_jobs=None):
     else:
         images = in_imw
 
+    ## AT: Deprecated start
+    #inverted_images = Exposure('invert').apply(images)
+    #return_images, keep = ThresholdMultiotsu(classes=2).apply(inverted_images, return_rejects=True)
+    ## End 
+    
     # Apply Isolated Pipeline
-    inverted_images = Exposure('invert').apply(images)
-    return_images, keep = ThresholdMultiotsu(classes=2).apply(inverted_images, return_rejects=True)
-
+    return_images, keep = DownsampleBlur(size=3, sigma=17).apply(inverted_images, return_rejects=True)
+    
     if isinstance(in_imw, ImageWrapper):
         return ImageWrapper(return_images, category=in_imw.category + '\n Closed - Preprocessed',
                             image_labels=copy.deepcopy(in_imw.image_labels))

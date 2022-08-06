@@ -264,6 +264,7 @@ class ImageLoader:
         # Filter to get n instances.
         self.sample_df = self.sample_df.groupby('filename').head(1)
         self.sample_df = self.sample_df.sample(frac=1, random_state=self.seed+7)
+        self.final_samples = self.sample_df.copy() # Added to allow for inspection of the complete df before filtering.
         self.sample_df = self.sample_df.head(n)
 
         # Add the location of the files to read from

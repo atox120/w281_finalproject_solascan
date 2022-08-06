@@ -361,7 +361,7 @@ class DownsampleBlur:
 
         return in_imw, out_imw
 
-    def apply(self, in_imgs):
+    def apply(self, in_imgs, return_rejects=False):
         """
         Wrapper to apply function, standardises syntax. 
         Also a means to access the method directly.
@@ -384,21 +384,34 @@ class DownsampleBlur:
         up_method = self.parse_interpolation(self.interpol_method_up)
 
         # loop through each image
-        for img in in_imgs:
-            # downsample then upsample
-            small_img = cv2.resize(img, reduced_size, interpolation=down_method)
-            sampled_img = cv2.resize(small_img, original_size, interpolation=up_method)
+        keep = []
+        for cnt, img in enumerate(in_imgs):
+            
+            try:
+                # downsample then upsample
+                small_img = cv2.resize(img, reduced_size, interpolation=down_method)
+                sampled_img = cv2.resize(small_img, original_size, interpolation=up_method)
 
-            # blur the image
-            gaussian_kernel = CreateKernel(kernel='gaussian', size=self.size, std=self.sigma)
-            downsample_blur_img = sc_convolve(sampled_img, gaussian_kernel.kernel_val, mode=self.edge_mode)
+                # blur the image
+                gaussian_kernel = CreateKernel(kernel='gaussian', size=self.size, std=self.sigma)
+                downsample_blur_img = sc_convolve(sampled_img, gaussian_kernel.kernel_val, mode=self.edge_mode)
+            except ValueError:
+                print(f'Failed on count {cnt}')
+                continue
+
+            # These are the indices to keep
+            keep.append(cnt)
 
             # Append out.
             out_list.append(downsample_blur_img)
 
         out_imgs = np.stack(out_list, axis=0)
 
-        return out_imgs
+        if not return_rejects:
+            return out_imgs
+        else:
+            print(f'{in_imgs.shape[0] - len(keep)} images were rejected')
+            return out_imgs, keep
 
     @staticmethod
     def parse_interpolation(method):
