@@ -1,10 +1,9 @@
 import copy
 import math
 import threading
+import numpy as np
 from collections.abc import Iterable
 from multiprocessing import Process, Pipe
-
-import numpy as np
 
 
 class ImageWrapper:
@@ -137,7 +136,7 @@ def chunk(instr):
 
 
 def make_iter(var):
-    if isinstance(var, Iterable) and not isinstance(var, np.ndarray):
+    if isinstance(var, Iterable) and not isinstance(var, np.ndarray) and not isinstance(var, str):
         return var
     else:
         return (var, )
