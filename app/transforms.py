@@ -366,11 +366,11 @@ class DownsampleBlur:
         Wrapper to apply function, standardises syntax. 
         Also a means to access the method directly.
         """
-        out_imgs = self.downsample_blur(in_imgs)
+        out_imgs = self.downsample_blur(in_imgs, return_rejects)
 
         return out_imgs
 
-    def downsample_blur(self, in_imgs):
+    def downsample_blur(self, in_imgs, return_rejects=False):
         """
         downsamples and blurs the image using a gaussian kernel.
         """

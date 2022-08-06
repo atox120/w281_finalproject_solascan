@@ -97,6 +97,7 @@ class ImageLoader:
         # Keep only one copy of the file and folder
         self.cv_files_df = pd.DataFrame()
         self.sample_df = pd.DataFrame()
+        self.final_samples = pd.DataFrame()
 
         if do_train:
             # Keep only rows with train data
