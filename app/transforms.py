@@ -380,7 +380,7 @@ class DownsampleBlur:
         # Get original downsampled dimensions
         original_size = in_imgs.shape[1:3]
         reduced_size = tuple(np.array(original_size) // self.downsample_factor)
-        down_method = self.parse_interpolation(self.interpol_method_up)
+        down_method = self.parse_interpolation(self.interpol_method_down)
         up_method = self.parse_interpolation(self.interpol_method_up)
 
         # loop through each image
