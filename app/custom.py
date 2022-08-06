@@ -484,7 +484,7 @@ class HighlightFrontGrid:
         total_size = width * height
         finger_size = finger_width * finger_height
 
-        # Give puter region and finger weights
+        # Give outer region and finger weights
         outer_weight = 1 / (total_size - finger_size)
         finger_weight = 1 / finger_size
 
