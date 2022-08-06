@@ -4,7 +4,7 @@ from app.utils import ImageWrapper
 from app.custom import RemoveBusBars, Orient
 from app.imager import Exposure, ImageLoader, DefectViewer
 from app.filters import CreateKernel, Convolve, ThresholdMultiotsu, Sato
-from app.transforms import FFT, IFFT, Butterworth
+from app.transforms import FFT, IFFT, Butterworth, DownsampleBlur
 
 
 def get_samples(defect_classes, num_samples, complimentary=True):
@@ -141,17 +141,13 @@ def closed(in_imw, num_jobs=None):
 
     # Pipeline for Closed Cracks
     sato_filtered = Sato(sigmas=[1, 2]).apply(images)
-    return_images = Exposure('stretch').apply(sato_filtered)
-    
-    # AT Deprecated Start
-    #return_images, keep = ThresholdMultiotsu(classes=4, threshold=1, digitize=False).apply(
-    #    stretched_images, return_rejects=True)
-    # End
+    stretched_images = Exposure('stretch').apply(sato_filtered)
+    return_images, keep = ThresholdMultiotsu(classes=4, threshold=1, digitize=False).apply(
+        stretched_images, return_rejects=True)
 
     if isinstance(in_imw, ImageWrapper):
         # These are the indices to keep
-        #image_labels = [in_imw.image_labels[x] for x in keep]
-        image_labels = in_imw.image_labels
+        image_labels = [in_imw.image_labels[x] for x in keep]
         return ImageWrapper(return_images, category=in_imw.category + '\n Closed - Preprocessed',
                             image_labels=image_labels)
 
@@ -177,10 +173,10 @@ def isolated(in_imw, num_jobs=None):
     ## End 
     
     # Apply Isolated Pipeline
-    return_images, keep = DownsampleBlur(size=3, sigma=17).apply(inverted_images, return_rejects=True)
+    return_images = DownsampleBlur(size=3, sigma=17).apply(images, return_rejects=False)
     
     if isinstance(in_imw, ImageWrapper):
-        return ImageWrapper(return_images, category=in_imw.category + '\n Closed - Preprocessed',
+        return ImageWrapper(return_images, category=in_imw.category + '\n Isolated - Preprocessed',
                             image_labels=copy.deepcopy(in_imw.image_labels))
 
     return return_images

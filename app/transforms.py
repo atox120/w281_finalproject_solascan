@@ -370,7 +370,7 @@ class DownsampleBlur:
 
         return out_imgs
 
-    def downsample_blur(self, in_imgs):
+    def downsample_blur(self, in_imgs, return_rejects=False):
         """
         downsamples and blurs the image using a gaussian kernel.
         """
