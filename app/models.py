@@ -599,8 +599,8 @@ class ModelNN:
             epoch_val_loss.append(np.mean(it_loss))
 
             # Epoch train and validation losses
-            print(f'Epoch {epoch} train loss {epoch_train_loss[-1]} val loss {epoch_val_loss[-1]} '
-                  f'lr {self.scheduler.get_last_lr()}')
+            print(f'Epoch {epoch} train loss {epoch_train_loss[-1]:.4f} val loss {epoch_val_loss[-1]:.4f} '
+                  f'lr {self.scheduler.get_last_lr()[0]:.8f}')
 
             # If it is the best loss till now then save the model
             state_dict = copy.deepcopy(self.model_params)
@@ -661,7 +661,7 @@ class ModelNN:
             x_cv = self.pca.transform(x_cv)
         return x_train, x_cv
 
-    def fit(self, num_epochs=10, seed=None):
+    def fit(self, num_epochs=20, seed=None):
         """
 
         :return:

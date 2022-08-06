@@ -4,7 +4,7 @@ from app.utils import ImageWrapper
 from app.custom import RemoveBusBars, Orient
 from app.imager import Exposure, ImageLoader, DefectViewer
 from app.filters import CreateKernel, Convolve, ThresholdMultiotsu, Sato
-from app.transforms import FFT, IFFT, Butterworth
+from app.transforms import FFT, IFFT, Butterworth, DownsampleBlur
 
 
 def get_samples(defect_classes, num_samples, complimentary=True):
@@ -167,12 +167,16 @@ def isolated(in_imw, num_jobs=None):
     else:
         images = in_imw
 
+    ## AT: Deprecated start
+    #inverted_images = Exposure('invert').apply(images)
+    #return_images, keep = ThresholdMultiotsu(classes=2).apply(inverted_images, return_rejects=True)
+    ## End 
+    
     # Apply Isolated Pipeline
-    inverted_images = Exposure('invert').apply(images)
-    return_images, keep = ThresholdMultiotsu(classes=2).apply(inverted_images, return_rejects=True)
-
+    return_images = DownsampleBlur(size=3, sigma=17).apply(images, return_rejects=False)
+    
     if isinstance(in_imw, ImageWrapper):
-        return ImageWrapper(return_images, category=in_imw.category + '\n Closed - Preprocessed',
+        return ImageWrapper(return_images, category=in_imw.category + '\n Isolated - Preprocessed',
                             image_labels=copy.deepcopy(in_imw.image_labels))
 
     return return_images

@@ -1,3 +1,3 @@
 ## W281 Final Project - SolaScan - Project Repository
 
-Some text goes here. 
+This repository contains the code and notebooks used towards the classification of defects in solar cells. 
