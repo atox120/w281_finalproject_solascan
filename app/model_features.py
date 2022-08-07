@@ -142,12 +142,16 @@ def closed(in_imw, num_jobs=None):
     # Pipeline for Closed Cracks
     sato_filtered = Sato(sigmas=[1, 2]).apply(images)
     stretched_images = Exposure('stretch').apply(sato_filtered)
-    return_images, keep = ThresholdMultiotsu(classes=4, threshold=1, digitize=False).apply(
-        stretched_images, return_rejects=True)
+    
+    # find the infinite - because there are some 'black/blank' images 
+    # in the datset. 
+    keep = np.all(np.isfinite(stretched_images), axis=(-2, -1))
 
+    return_images = stretched_images[keep]
+    
     if isinstance(in_imw, ImageWrapper):
-        # These are the indices to keep
-        image_labels = [in_imw.image_labels[x] for x in keep]
+        # These are the indices to keep - filter out the infinites. 
+        image_labels = (np.array(in_imw.image_labels)[keep]).tolist()
         return ImageWrapper(return_images, category=in_imw.category + '\n Closed - Preprocessed',
                             image_labels=image_labels)
 
